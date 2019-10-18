@@ -22,12 +22,12 @@ import app_cache
 import app_defs
 import hw_intf
 from app_config import MasternodeConfig, AppConfig, InputKeyType
-from app_defs import FEE_DUFF_PER_BYTE
+from app_defs import FEE_HUFF_PER_BYTE
 from bip44_wallet import Bip44Wallet, BreakFetchTransactionsException, find_wallet_addresses
 from common import CancelException
-from dash_utils import generate_bls_privkey, generate_wif_privkey, validate_address, wif_privkey_to_address, \
+from hatch_utils import generate_bls_privkey, generate_wif_privkey, validate_address, wif_privkey_to_address, \
     validate_wif_privkey, bls_privkey_to_pubkey
-from dashd_intf import DashdInterface
+from hatchd_intf import HatchdInterface
 from thread_fun_dlg import CtrlObject
 from ui import ui_reg_masternode_dlg
 from wallet_common import Bip44AccountType, Bip44AddressType
@@ -35,7 +35,7 @@ from wnd_utils import WndUtils
 
 
 STEP_MN_DATA = 1
-STEP_DASHD_TYPE = 2
+STEP_HATCHD_TYPE = 2
 STEP_AUTOMATIC_RPC_NODE = 3
 STEP_MANUAL_OWN_NODE = 4
 STEP_SUMMARY = 5
@@ -47,11 +47,11 @@ NODE_TYPE_OWN = 2
 CACHE_ITEM_SHOW_FIELD_HINTS = 'RegMasternodeDlg_ShowFieldHints'
 
 
-log = logging.getLogger('dmt.reg_masternode')
+log = logging.getLogger('hmt.reg_masternode')
 
 
 class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUtils):
-    def __init__(self, main_dlg, config: AppConfig, dashd_intf: DashdInterface, masternode: MasternodeConfig,
+    def __init__(self, main_dlg, config: AppConfig, hatchd_intf: HatchdInterface, masternode: MasternodeConfig,
                  on_proregtx_success_callback: Callable):
         QDialog.__init__(self, main_dlg)
         ui_reg_masternode_dlg.Ui_RegMasternodeDlg.__init__(self)
@@ -59,7 +59,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.main_dlg = main_dlg
         self.masternode = masternode
         self.app_config = config
-        self.dashd_intf:DashdInterface = dashd_intf
+        self.hatchd_intf:HatchdInterface = hatchd_intf
         self.on_proregtx_success_callback = on_proregtx_success_callback
         self.style = '<style>.info{color:darkblue} .warning{color:#ff6600} .error{background-color:red;color:white}</style>'
         self.operator_reward_saved = None
@@ -70,23 +70,23 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.step_stack: List[int] = []
         self.proregtx_prepare_thread_ref = None
         self.deterministic_mns_spork_active = True
-        self.dmn_collateral_tx: str = None
-        self.dmn_collateral_tx_index: int = None
-        self.dmn_collateral_tx_address: str = None
-        self.dmn_collateral_tx_address_path: str = None
-        self.dmn_ip: str = None
-        self.dmn_tcp_port: int = None
-        self.dmn_owner_payout_addr: str = None
-        self.dmn_operator_reward: int = 0
-        self.dmn_owner_privkey: str = None
-        self.dmn_owner_address: str = None
-        self.dmn_operator_privkey: str = None
-        self.dmn_operator_pubkey: str = None
-        self.dmn_voting_privkey: str = None
-        self.dmn_voting_address: str = None
-        self.dmn_owner_key_type = InputKeyType.PRIVATE
-        self.dmn_operator_key_type = InputKeyType.PRIVATE
-        self.dmn_voting_key_type = InputKeyType.PRIVATE
+        self.hmn_collateral_tx: str = None
+        self.hmn_collateral_tx_index: int = None
+        self.hmn_collateral_tx_address: str = None
+        self.hmn_collateral_tx_address_path: str = None
+        self.hmn_ip: str = None
+        self.hmn_tcp_port: int = None
+        self.hmn_owner_payout_addr: str = None
+        self.hmn_operator_reward: int = 0
+        self.hmn_owner_privkey: str = None
+        self.hmn_owner_address: str = None
+        self.hmn_operator_privkey: str = None
+        self.hmn_operator_pubkey: str = None
+        self.hmn_voting_privkey: str = None
+        self.hmn_voting_address: str = None
+        self.hmn_owner_key_type = InputKeyType.PRIVATE
+        self.hmn_operator_key_type = InputKeyType.PRIVATE
+        self.hmn_voting_key_type = InputKeyType.PRIVATE
 
         self.collateral_validation_err_msg = ''
         self.ip_port_validation_err_msg = ''
@@ -96,16 +96,16 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.operator_key_validation_err_msg = ''
         self.voting_key_validation_err_msg = ''
 
-        self.dmn_reg_tx_hash = ''
+        self.hmn_reg_tx_hash = ''
         self.manual_signed_message = False
         self.last_manual_prepare_string: str = None
         self.wait_for_confirmation_timer_id = None
         self.show_field_hinds = True
         self.summary_info = []
         if self.masternode:
-            self.dmn_collateral_tx_address_path = self.masternode.collateralBip32Path
+            self.hmn_collateral_tx_address_path = self.masternode.collateralBip32Path
         self.bip44_wallet = Bip44Wallet(self.app_config.hw_coin_name, self.main_dlg.hw_session,
-                                        self.app_config.db_intf, self.dashd_intf, self.app_config.dash_network)
+                                        self.app_config.db_intf, self.hatchd_intf, self.app_config.hatch_network)
         self.finishing = False
         self.setupUi()
 
@@ -131,8 +131,8 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.setIcon(self.btnManualProtxPrepareResultPaste, 'content-paste@16px.png')
         self.setIcon(self.btnManualProtxSubmitCopy, 'content-copy@16px.png')
         self.setIcon(self.btnManualTxHashPaste, 'content-paste@16px.png')
-        self.setIcon(self.btnSummaryDMNOperatorKeyCopy, 'content-copy@16px.png')
-        self.edtSummaryDMNOperatorKey.setStyleSheet("QLineEdit{background-color: white} "
+        self.setIcon(self.btnSummaryHMNOperatorKeyCopy, 'content-copy@16px.png')
+        self.edtSummaryHMNOperatorKey.setStyleSheet("QLineEdit{background-color: white} "
                                                     "QLineEdit:read-only{background-color: white}")
         doc_url = app_defs.get_doc_url('deterministic-mn-migration.md')
         if doc_url:
@@ -177,23 +177,23 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
         def get_label_text(prefix:str, key_type: str, tooltip_anchor: str, style: str):
             lbl = prefix + ' ' + \
-                  {'privkey': 'private key', 'pubkey': 'public key', 'address': 'Dash address'}.get(key_type, '???')
+                  {'privkey': 'private key', 'pubkey': 'public key', 'address': 'Hatch address'}.get(key_type, '???')
 
             change_mode = f'(<a href="{tooltip_anchor}">use {tooltip_anchor}</a>)'
             return f'<table style="float:right;{style_to_color(style)}"><tr><td><b>{lbl}</b></td><td>{change_mode}</td></tr></table>'
 
         if self.masternode:
 
-            if self.dmn_owner_key_type == InputKeyType.PRIVATE:
+            if self.hmn_owner_key_type == InputKeyType.PRIVATE:
                 key_type, tooltip_anchor, placeholder_text = ('privkey', 'address', 'Enter the owner private key')
                 style = ''
             else:
-                key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter the owner Dash address')
+                key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter the owner Hatch address')
                 style = 'hl1'
             self.lblOwnerKey.setText(get_label_text('Owner', key_type, tooltip_anchor, style))
             self.edtOwnerKey.setPlaceholderText(placeholder_text)
 
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
                 key_type, tooltip_anchor, placeholder_text = ('privkey', 'pubkey', 'Enter the operator private key')
                 style = ''
             else:
@@ -202,53 +202,53 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             self.lblOperatorKey.setText(get_label_text('Operator', key_type, tooltip_anchor, style))
             self.edtOperatorKey.setPlaceholderText(placeholder_text)
 
-            if self.dmn_voting_key_type == InputKeyType.PRIVATE:
+            if self.hmn_voting_key_type == InputKeyType.PRIVATE:
                 key_type, tooltip_anchor, placeholder_text = ('privkey','address', 'Enter the voting private key')
                 style = ''
             else:
-                key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter the voting Dash address')
+                key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter the voting Hatch address')
                 style = 'hl1'
             self.lblVotingKey.setText(get_label_text('Voting', key_type, tooltip_anchor, style))
             self.edtVotingKey.setPlaceholderText(placeholder_text)
 
     @pyqtSlot(str)
     def on_lblOwnerKey_linkActivated(self, link):
-        if self.dmn_owner_key_type == InputKeyType.PRIVATE:
-            self.dmn_owner_key_type = InputKeyType.PUBLIC
-            self.dmn_owner_privkey = self.edtOwnerKey.text()
-            self.edtOwnerKey.setText(self.dmn_owner_address)
+        if self.hmn_owner_key_type == InputKeyType.PRIVATE:
+            self.hmn_owner_key_type = InputKeyType.PUBLIC
+            self.hmn_owner_privkey = self.edtOwnerKey.text()
+            self.edtOwnerKey.setText(self.hmn_owner_address)
         else:
-            self.dmn_owner_key_type = InputKeyType.PRIVATE
-            self.dmn_owner_address = self.edtOwnerKey.text()
-            self.edtOwnerKey.setText(self.dmn_owner_privkey)
+            self.hmn_owner_key_type = InputKeyType.PRIVATE
+            self.hmn_owner_address = self.edtOwnerKey.text()
+            self.edtOwnerKey.setText(self.hmn_owner_privkey)
         self.update_dynamic_labels()
         self.update_ctrls_visibility()
         self.upd_owner_key_info(False)
 
     @pyqtSlot(str)
     def on_lblOperatorKey_linkActivated(self, link):
-        if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-            self.dmn_operator_key_type = InputKeyType.PUBLIC
-            self.dmn_operator_privkey = self.edtOperatorKey.text()
-            self.edtOperatorKey.setText(self.dmn_operator_pubkey)
+        if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+            self.hmn_operator_key_type = InputKeyType.PUBLIC
+            self.hmn_operator_privkey = self.edtOperatorKey.text()
+            self.edtOperatorKey.setText(self.hmn_operator_pubkey)
         else:
-            self.dmn_operator_key_type = InputKeyType.PRIVATE
-            self.dmn_operator_pubkey = self.edtOperatorKey.text()
-            self.edtOperatorKey.setText(self.dmn_operator_privkey)
+            self.hmn_operator_key_type = InputKeyType.PRIVATE
+            self.hmn_operator_pubkey = self.edtOperatorKey.text()
+            self.edtOperatorKey.setText(self.hmn_operator_privkey)
         self.update_dynamic_labels()
         self.update_ctrls_visibility()
         self.upd_operator_key_info(False)
 
     @pyqtSlot(str)
     def on_lblVotingKey_linkActivated(self, link):
-        if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-            self.dmn_voting_key_type = InputKeyType.PUBLIC
-            self.dmn_voting_privkey = self.edtVotingKey.text()
-            self.edtVotingKey.setText(self.dmn_voting_address)
+        if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+            self.hmn_voting_key_type = InputKeyType.PUBLIC
+            self.hmn_voting_privkey = self.edtVotingKey.text()
+            self.edtVotingKey.setText(self.hmn_voting_address)
         else:
-            self.dmn_voting_key_type = InputKeyType.PRIVATE
-            self.dmn_voting_address = self.edtVotingKey.text()
-            self.edtVotingKey.setText(self.dmn_voting_privkey)
+            self.hmn_voting_key_type = InputKeyType.PRIVATE
+            self.hmn_voting_address = self.edtVotingKey.text()
+            self.edtVotingKey.setText(self.hmn_voting_privkey)
         self.update_dynamic_labels()
         self.update_ctrls_visibility()
         self.upd_voting_key_info(False)
@@ -256,7 +256,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
     @pyqtSlot(str)
     def on_lblOwnerKey_linkHovered(self, link):
         if link == 'address':
-            tt = 'Change input type to Dash address'
+            tt = 'Change input type to Hatch address'
         else:
             tt = 'Change input type to private key'
         self.lblOwnerKey.setToolTip(tt)
@@ -272,7 +272,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
     @pyqtSlot(str)
     def on_lblVotingKey_linkHovered(self, link):
         if link == 'address':
-            tt = 'Change input type to Dash address'
+            tt = 'Change input type to Hatch address'
         else:
             tt = 'Change input type to private key'
         self.lblVotingKey.setToolTip(tt)
@@ -287,7 +287,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         found_protx = False
         protx_state = {}
         try:
-            for protx in self.dashd_intf.protx('list', 'registered', True):
+            for protx in self.hatchd_intf.protx('list', 'registered', True):
                 protx_state = protx.get('state')
                 if (protx_state and protx_state.get('service') == self.masternode.ip + ':' + self.masternode.port) or \
                         (protx.get('collateralHash') == self.masternode.collateralTx and
@@ -298,44 +298,44 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             pass
 
         if found_protx:
-            if self.masternode.get_dmn_owner_public_address(self.app_config.dash_network) == \
+            if self.masternode.get_hmn_owner_public_address(self.app_config.hatch_network) == \
                     protx_state.get('ownerAddress'):
                 gen_owner = True
 
-            if self.masternode.get_dmn_operator_pubkey() == protx_state.get('pubKeyOperator'):
+            if self.masternode.get_hmn_operator_pubkey() == protx_state.get('pubKeyOperator'):
                 gen_operator = True
 
-            if self.masternode.get_dmn_voting_public_address(self.app_config.dash_network) == \
+            if self.masternode.get_hmn_voting_public_address(self.app_config.hatch_network) == \
                     protx_state.get('votingAddress'):
                 gen_voting = True
 
-        if (self.masternode.dmn_owner_key_type == InputKeyType.PRIVATE and
-             not self.masternode.dmn_owner_private_key) or \
-                (self.masternode.dmn_owner_key_type == InputKeyType.PUBLIC and
-                 not self.masternode.dmn_owner_address):
+        if (self.masternode.hmn_owner_key_type == InputKeyType.PRIVATE and
+             not self.masternode.hmn_owner_private_key) or \
+                (self.masternode.hmn_owner_key_type == InputKeyType.PUBLIC and
+                 not self.masternode.hmn_owner_address):
             gen_owner = True
 
-        if (self.masternode.dmn_operator_key_type == InputKeyType.PRIVATE and
-            not self.masternode.dmn_operator_private_key) or \
-                (self.masternode.dmn_operator_key_type == InputKeyType.PUBLIC and
-                not self.masternode.dmn_operator_public_key):
+        if (self.masternode.hmn_operator_key_type == InputKeyType.PRIVATE and
+            not self.masternode.hmn_operator_private_key) or \
+                (self.masternode.hmn_operator_key_type == InputKeyType.PUBLIC and
+                not self.masternode.hmn_operator_public_key):
             gen_operator = True
 
-        if (self.masternode.dmn_voting_key_type == InputKeyType.PRIVATE and
-            not self.masternode.dmn_voting_private_key) or \
-                (self.masternode.dmn_voting_key_type == InputKeyType.PUBLIC and
-                 not self.masternode.dmn_voting_address):
+        if (self.masternode.hmn_voting_key_type == InputKeyType.PRIVATE and
+            not self.masternode.hmn_voting_private_key) or \
+                (self.masternode.hmn_voting_key_type == InputKeyType.PUBLIC and
+                 not self.masternode.hmn_voting_address):
             gen_voting = True
 
         if gen_owner:
-            self.owner_pkey_generated =  generate_wif_privkey(self.app_config.dash_network, compressed=True)
+            self.owner_pkey_generated =  generate_wif_privkey(self.app_config.hatch_network, compressed=True)
             self.edtOwnerKey.setText(self.owner_pkey_generated)
         else:
-            if self.masternode.dmn_owner_key_type == InputKeyType.PRIVATE:
-                self.edtOwnerKey.setText(self.masternode.dmn_owner_private_key)
+            if self.masternode.hmn_owner_key_type == InputKeyType.PRIVATE:
+                self.edtOwnerKey.setText(self.masternode.hmn_owner_private_key)
             else:
-                self.edtOwnerKey.setText(self.masternode.dmn_owner_address)
-            self.dmn_owner_key_type = self.masternode.dmn_owner_key_type
+                self.edtOwnerKey.setText(self.masternode.hmn_owner_address)
+            self.hmn_owner_key_type = self.masternode.hmn_owner_key_type
 
         if gen_operator:
             try:
@@ -344,21 +344,21 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             except Exception as e:
                 self.errorMsg(str(e))
         else:
-            if self.masternode.dmn_operator_key_type == InputKeyType.PRIVATE:
-                self.edtOperatorKey.setText(self.masternode.dmn_operator_private_key)
+            if self.masternode.hmn_operator_key_type == InputKeyType.PRIVATE:
+                self.edtOperatorKey.setText(self.masternode.hmn_operator_private_key)
             else:
-                self.edtOperatorKey.setText(self.masternode.dmn_operator_public_key)
-            self.dmn_operator_key_type = self.masternode.dmn_operator_key_type
+                self.edtOperatorKey.setText(self.masternode.hmn_operator_public_key)
+            self.hmn_operator_key_type = self.masternode.hmn_operator_key_type
 
         if self.deterministic_mns_spork_active:
             if gen_voting:
-                self.voting_pkey_generated = generate_wif_privkey(self.app_config.dash_network, compressed=True)
+                self.voting_pkey_generated = generate_wif_privkey(self.app_config.hatch_network, compressed=True)
                 self.edtVotingKey.setText(self.voting_pkey_generated)
             else:
-                if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-                    self.edtVotingKey.setText(self.masternode.dmn_voting_private_key)
+                if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+                    self.edtVotingKey.setText(self.masternode.hmn_voting_private_key)
                 else:
-                    self.edtVotingKey.setText(self.masternode.dmn_voting_address)
+                    self.edtVotingKey.setText(self.masternode.hmn_voting_address)
 
     @pyqtSlot(bool)
     def on_btnCancel_clicked(self):
@@ -370,7 +370,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
     @pyqtSlot(bool)
     def on_btnGenerateOwnerKey_clicked(self, active):
-        k = generate_wif_privkey(self.app_config.dash_network, compressed=True)
+        k = generate_wif_privkey(self.app_config.hatch_network, compressed=True)
         self.edtOwnerKey.setText(k)
         self.edtOwnerKey.repaint()
 
@@ -381,7 +381,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
     @pyqtSlot(bool)
     def on_btnGenerateVotingKey_clicked(self, active):
-        k = generate_wif_privkey(self.app_config.dash_network, compressed=True)
+        k = generate_wif_privkey(self.app_config.hatch_network, compressed=True)
         self.edtVotingKey.setText(k)
         self.edtVotingKey.repaint()
 
@@ -402,10 +402,10 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             self.edtVotingKey.hide()
             self.btnGenerateVotingKey.hide()
         else:
-            self.btnGenerateVotingKey.setVisible(self.dmn_voting_key_type == InputKeyType.PRIVATE)
+            self.btnGenerateVotingKey.setVisible(self.hmn_voting_key_type == InputKeyType.PRIVATE)
 
-        self.btnGenerateOwnerKey.setVisible(self.dmn_owner_key_type == InputKeyType.PRIVATE)
-        self.btnGenerateOperatorKey.setVisible(self.dmn_operator_key_type == InputKeyType.PRIVATE)
+        self.btnGenerateOwnerKey.setVisible(self.hmn_owner_key_type == InputKeyType.PRIVATE)
+        self.btnGenerateOperatorKey.setVisible(self.hmn_operator_key_type == InputKeyType.PRIVATE)
 
     def update_fields_info(self, show_invalid_data_msg: bool):
         """
@@ -454,7 +454,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                     style = 'info'
                 else:
                     msg = 'If don\'t set the IP address and port fields, the masternode operator will ' \
-                          'have to issue a ProUpServTx transaction using Dash wallet.'
+                          'have to issue a ProUpServTx transaction using Hatch wallet.'
                     style = 'warning'
         self.set_ctrl_message(self.lblIPMsg, msg, style)
 
@@ -466,7 +466,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             style = 'error'
         else:
             if self.show_field_hinds:
-                msg = 'The owner\'s payout address can be set to any valid Dash address - it no longer ' \
+                msg = 'The owner\'s payout address can be set to any valid Hatch address - it no longer ' \
                       'has to be the same as the collateral address.'
                 style = 'info'
         self.set_ctrl_message(self.lblPayoutMsg, msg, style)
@@ -497,7 +497,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             style = 'error'
         else:
             if self.show_field_hinds:
-                if self.dmn_owner_key_type == InputKeyType.PRIVATE:
+                if self.hmn_owner_key_type == InputKeyType.PRIVATE:
                     if self.edtOwnerKey.text().strip() == self.owner_pkey_generated:
                         msg = 'This is an automatically generated owner private key. You can enter your own or ' \
                               'generate a new one by pressing the button on the right.'
@@ -505,8 +505,8 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                         msg = 'Enter the owner private key or generate a new one by clicking the button on the right.'
                     style = 'info'
                 else:
-                    msg = 'You can use Dash address if the related private key is stored elsewhere, eg in ' \
-                          'the Dash Core wallet.<br><span class="warning">Note, that if you provide an address ' \
+                    msg = 'You can use Hatch address if the related private key is stored elsewhere, eg in ' \
+                          'the Hatch Core wallet.<br><span class="warning">Note, that if you provide an address ' \
                           'instead of a private key, you will not be able to publish ProRegTx ' \
                           'transaction through public RPC nodes in the next steps.</span>'
                     style = 'info'
@@ -521,7 +521,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             style = 'error'
         else:
             if self.show_field_hinds:
-                if self.dmn_operator_key_type == InputKeyType.PRIVATE:
+                if self.hmn_operator_key_type == InputKeyType.PRIVATE:
                     if self.edtOperatorKey.text().strip() == self.operator_pkey_generated:
                         msg = 'This is an automatically generated operator BLS private key. You can enter your ' \
                               'own or generate a new one by pressing the button on the right.'
@@ -547,7 +547,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                 style = 'error'
             else:
                 if self.show_field_hinds:
-                    if self.dmn_voting_key_type == InputKeyType.PRIVATE:
+                    if self.hmn_voting_key_type == InputKeyType.PRIVATE:
                         if self.edtVotingKey.text().strip() == self.voting_pkey_generated:
                             msg = 'This is an automatically generated private key for voting. You can enter your own or ' \
                                   'generate a new one by pressing the button on the right.'
@@ -556,40 +556,40 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                                   'the right.'
                         style = 'info'
                     else:
-                        msg = 'You can use Dash address if the related private key is stored elsewhere, eg in ' \
-                              'the Dash Core wallet.<br><span class="warning">Note, that providing an address instead of ' \
+                        msg = 'You can use Hatch address if the related private key is stored elsewhere, eg in ' \
+                              'the Hatch Core wallet.<br><span class="warning">Note, that providing an address instead of ' \
                               'a private key will prevent you from voting on proposals in this program.</span>'
                         style = 'info'
 
         self.set_ctrl_message(self.lblVotingMsg, msg, style)
 
-    def get_dash_node_type(self):
-        if self.rbDMTDashNodeType.isChecked():
+    def get_hatch_node_type(self):
+        if self.rbHMTHatchNodeType.isChecked():
             return NODE_TYPE_PUBLIC_RPC
-        elif self.rbOwnDashNodeType.isChecked():
+        elif self.rbOwnHatchNodeType.isChecked():
             return NODE_TYPE_OWN
         else:
             return None
 
     def upd_node_type_info(self):
-        nt = self.get_dash_node_type()
+        nt = self.get_hatch_node_type()
         msg = ''
         if nt is None:
-            msg = 'DIP-3 masternode registration involves sending a special transaction via the v0.13 Dash node ' \
-                  '(eg Dash-Qt). <b>Note, that this requires incurring a certain transaction fee, as with any ' \
+            msg = 'DIP-3 masternode registration involves sending a special transaction via the v0.13 Hatch node ' \
+                  '(eg Hatch-Qt). <b>Note, that this requires incurring a certain transaction fee, as with any ' \
                   'other ("normal") transaction.</b>'
         elif nt == NODE_TYPE_PUBLIC_RPC:
             msg = 'The ProRegTx transaction will be processed via the remote RPC node stored in the app configuration.' \
                   '<br><br>' \
                   '<b>Note 1:</b> this operation will involve signing transaction data with your <span style="color:red">owner key on the remote node</span>, ' \
-                  'so use this method only if you trust the operator of that node (nodes <i>alice(luna, suzy).dash-masternode-tool.org</i> are maintained by the author of this application).<br><br>' \
+                  'so use this method only if you trust the operator of that node (nodes <i>alice(luna, suzy).hatch-masternode-tool.org</i> are maintained by the author of this application).<br><br>' \
                   '<b>Note 2:</b> if the operation fails (e.g. due to a lack of funds), choose the manual method ' \
-                  'using your own Dash wallet.'
+                  'using your own Hatch wallet.'
 
         elif nt == NODE_TYPE_OWN:
-            msg = 'A Dash Core wallet (v0.13) with sufficient funds to cover transaction fees is required to ' \
+            msg = 'A Hatch Core wallet (v0.13) with sufficient funds to cover transaction fees is required to ' \
                   'complete the next steps.'
-        self.lblDashNodeTypeMessage.setText(msg)
+        self.lblHatchNodeTypeMessage.setText(msg)
 
     def update_ctrl_state(self):
         self.edtOperatorReward.setDisabled(self.chbWholeMNReward.isChecked())
@@ -660,7 +660,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             self.btnContinue.setEnabled(True)
             self.btnCancel.setEnabled(True)
 
-        elif self.current_step == STEP_DASHD_TYPE:
+        elif self.current_step == STEP_HATCHD_TYPE:
             self.stackedWidget.setCurrentIndex(1)
             self.upd_node_type_info()
             self.btnContinue.setEnabled(True)
@@ -679,31 +679,31 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         elif self.current_step == STEP_SUMMARY:
             self.stackedWidget.setCurrentIndex(4)
 
-            if self.dmn_owner_key_type == InputKeyType.PRIVATE:
-                owner_privkey = self.dmn_owner_privkey
+            if self.hmn_owner_key_type == InputKeyType.PRIVATE:
+                owner_privkey = self.hmn_owner_privkey
             else:
                 owner_privkey = '&lt;not available&gt;'
 
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-                operator_privkey = self.dmn_operator_privkey
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+                operator_privkey = self.hmn_operator_privkey
             else:
                 operator_privkey = '&lt;not available&gt;'
 
-            if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-                voting_privkey = self.dmn_voting_privkey
+            if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+                voting_privkey = self.hmn_voting_privkey
             else:
                 voting_privkey = '&lt;not available&gt;'
 
             self.summary_info = \
-                [f'Network address\t{self.dmn_ip}:{self.dmn_tcp_port}',
-                 f'Payout address\t{self.dmn_owner_payout_addr}',
+                [f'Network address\t{self.hmn_ip}:{self.hmn_tcp_port}',
+                 f'Payout address\t{self.hmn_owner_payout_addr}',
                  f'Owner private key\t{owner_privkey}',
-                 f'Owner public address\t{self.dmn_owner_address}',
+                 f'Owner public address\t{self.hmn_owner_address}',
                  f'Operator private key\t{operator_privkey}',
-                 f'Operator public key\t{self.dmn_operator_pubkey}',
+                 f'Operator public key\t{self.hmn_operator_pubkey}',
                  f'Voting private key\t{voting_privkey}',
-                 f'Voting public address\t{self.dmn_voting_address}',
-                 f'Protx hash\t{self.dmn_reg_tx_hash}']
+                 f'Voting public address\t{self.hmn_voting_address}',
+                 f'Protx hash\t{self.hmn_reg_tx_hash}']
 
             text = '<table>'
             for l in self.summary_info:
@@ -714,23 +714,23 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             self.edtProtxSummary.show()
             self.lblProtxSummary2.show()
 
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
                 operator_message = '<b><span style="color:red">One more thing... <span></b>copy the following ' \
-                                   'line to the <code>dash.conf</code> file on your masternode server ' \
-                                   '(and restart <i>dashd</i>) or pass it to the masternode operator:'
+                                   'line to the <code>hatch.conf</code> file on your masternode server ' \
+                                   '(and restart <i>hatchd</i>) or pass it to the masternode operator:'
             else:
                 operator_message = '<b><span style="color:red">One more thing... <span></b>copy the following ' \
-                                   'line to the <code>dash.conf</code> file on your masternode server, replacing ' \
+                                   'line to the <code>hatch.conf</code> file on your masternode server, replacing ' \
                                    '"&lt;your-operator-bls-private-key&gt;" with the appropriate value or ask the operator ' \
                                    'for it:'
             self.lblProtxSummary3.setText(operator_message)
 
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-                operator_privkey = self.dmn_operator_privkey
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+                operator_privkey = self.hmn_operator_privkey
             else:
                 operator_privkey = '<your-operator-bls-private-key>'
 
-            self.edtSummaryDMNOperatorKey.setText(f'masternodeblsprivkey={operator_privkey}')
+            self.edtSummaryHMNOperatorKey.setText(f'masternodeblsprivkey={operator_privkey}')
             self.btnCancel.hide()
             self.btnBack.hide()
             self.btnContinue.hide()
@@ -748,16 +748,16 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.btnBack.repaint()
 
     def validate_data(self):
-        self.dmn_collateral_tx = self.edtCollateralTx.text().strip()
+        self.hmn_collateral_tx = self.edtCollateralTx.text().strip()
         self.collateral_validation_err_msg = ''
         error_count = 0
         try:
-            if not self.dmn_collateral_tx:
+            if not self.hmn_collateral_tx:
                 self.collateral_validation_err_msg = 'Collteral transaction ID is required.'
                 self.edtCollateralTx.setFocus()
             else:
-                self.dmn_collateral_tx_index = int(self.edtCollateralIndex.text())
-                if self.dmn_collateral_tx_index < 0:
+                self.hmn_collateral_tx_index = int(self.edtCollateralIndex.text())
+                if self.hmn_collateral_tx_index < 0:
                      self.collateral_validation_err_msg = 'Invalid collateral transaction index.'
         except Exception:
             self.edtCollateralIndex.setFocus()
@@ -769,9 +769,9 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
         self.ip_port_validation_err_msg = ''
         try:
-            self.dmn_ip = self.edtIP.text().strip()
-            if self.dmn_ip:
-                ipaddress.ip_address(self.dmn_ip)
+            self.hmn_ip = self.edtIP.text().strip()
+            if self.hmn_ip:
+                ipaddress.ip_address(self.hmn_ip)
         except Exception as e:
             self.edtIP.setFocus()
             self.ip_port_validation_err_msg = 'Invalid masternode IP address: %s.' % str(e)
@@ -779,10 +779,10 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             error_count += 1
 
         try:
-            if self.dmn_ip:
-                self.dmn_tcp_port = int(self.edtPort.text())
+            if self.hmn_ip:
+                self.hmn_tcp_port = int(self.edtPort.text())
             else:
-                self.dmn_tcp_port = None
+                self.hmn_tcp_port = None
         except Exception:
             self.edtPort.setFocus()
             self.ip_port_validation_err_msg = 'Invalid TCP port: should be integer.'
@@ -794,8 +794,8 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         if not addr:
             self.payout_address_validation_err_msg = 'Owner payout address is required.'
         else:
-            self.dmn_owner_payout_addr = addr
-            if not validate_address(self.dmn_owner_payout_addr, self.app_config.dash_network):
+            self.hmn_owner_payout_addr = addr
+            if not validate_address(self.hmn_owner_payout_addr, self.app_config.hatch_network):
                 self.payout_address_validation_err_msg = 'Invalid owner payout address.'
         if self.payout_address_validation_err_msg:
             self.edtPayoutAddress.setFocus()
@@ -804,10 +804,10 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
         self.operator_reward_validation_err_msg = ''
         if self.chbWholeMNReward.isChecked():
-            self.dmn_operator_reward = 0
+            self.hmn_operator_reward = 0
         else:
-            self.dmn_operator_reward = self.edtOperatorReward.value()
-            if self.dmn_operator_reward > 100 or self.dmn_operator_reward < 0:
+            self.hmn_operator_reward = self.edtOperatorReward.value()
+            if self.hmn_operator_reward > 100 or self.hmn_operator_reward < 0:
                 self.edtOperatorReward.setFocus()
                 self.operator_reward_validation_err_msg = 'Invalid operator reward value: should be a value ' \
                                                           'between 0 and 100.'
@@ -820,19 +820,19 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         if not key:
             self.owner_key_validation_err_msg = 'Owner key/address is required.'
         else:
-            if self.dmn_owner_key_type == InputKeyType.PRIVATE:
-                self.dmn_owner_privkey = key
-                if not validate_wif_privkey(self.dmn_owner_privkey, self.app_config.dash_network):
+            if self.hmn_owner_key_type == InputKeyType.PRIVATE:
+                self.hmn_owner_privkey = key
+                if not validate_wif_privkey(self.hmn_owner_privkey, self.app_config.hatch_network):
                     self.edtOwnerKey.setFocus()
                     self.owner_key_validation_err_msg = 'Invalid owner private key.'
                 else:
-                    self.dmn_owner_address = wif_privkey_to_address(self.dmn_owner_privkey, self.app_config.dash_network)
+                    self.hmn_owner_address = wif_privkey_to_address(self.hmn_owner_privkey, self.app_config.hatch_network)
             else:
-                self.dmn_owner_address = key
-                self.dmn_owner_privkey = ''
-                if not validate_address(self.dmn_owner_address, self.app_config.dash_network):
+                self.hmn_owner_address = key
+                self.hmn_owner_privkey = ''
+                if not validate_address(self.hmn_owner_address, self.app_config.hatch_network):
                     self.edtOwnerKey.setFocus()
-                    self.owner_key_validation_err_msg = 'Invalid owner Dash address.'
+                    self.owner_key_validation_err_msg = 'Invalid owner Hatch address.'
         if self.owner_key_validation_err_msg:
             self.upd_owner_key_info(True)
             error_count += 1
@@ -842,27 +842,27 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         if not key:
             self.operator_key_validation_err_msg = 'Operator key is required.'
         else:
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
                 try:
-                    self.dmn_operator_privkey = key
+                    self.hmn_operator_privkey = key
 
                     try:
-                        b = bytes.fromhex(self.dmn_operator_privkey)
+                        b = bytes.fromhex(self.hmn_operator_privkey)
                         if len(b) != 32:
                             raise Exception('invalid length (' + str(len(b)) + ')')
                     except Exception as e:
                         self.edtOperatorKey.setFocus()
                         self.operator_key_validation_err_msg = 'Invalid operator private key: ' + str(e)
 
-                    self.dmn_operator_pubkey = bls_privkey_to_pubkey(self.dmn_operator_privkey)
+                    self.hmn_operator_pubkey = bls_privkey_to_pubkey(self.hmn_operator_privkey)
                 except Exception as e:
                     self.edtOperatorKey.setFocus()
                     self.operator_key_validation_err_msg = 'Invalid operator private key: ' + str(e)
             else:
-                self.dmn_operator_pubkey = key
-                self.dmn_operator_privkey = ''
+                self.hmn_operator_pubkey = key
+                self.hmn_operator_privkey = ''
                 try:
-                    b = bytes.fromhex(self.dmn_operator_pubkey)
+                    b = bytes.fromhex(self.hmn_operator_pubkey)
                     if len(b) != 48:
                         raise Exception('invalid length (' + str(len(b)) + ')')
                 except Exception as e:
@@ -878,24 +878,24 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             if not key:
                 self.voting_key_validation_err_msg = 'Voting key/address is required.'
             else:
-                if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-                    self.dmn_voting_privkey = key
-                    if not validate_wif_privkey(self.dmn_voting_privkey, self.app_config.dash_network):
+                if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+                    self.hmn_voting_privkey = key
+                    if not validate_wif_privkey(self.hmn_voting_privkey, self.app_config.hatch_network):
                         self.edtVotingKey.setFocus()
                         self.voting_key_validation_err_msg = 'Invalid voting private key.'
                     else:
-                        self.dmn_voting_address = wif_privkey_to_address(self.dmn_voting_privkey, self.app_config.dash_network)
+                        self.hmn_voting_address = wif_privkey_to_address(self.hmn_voting_privkey, self.app_config.hatch_network)
                 else:
-                    self.dmn_voting_address = key
-                    self.dmn_voting_privkey = ''
-                    if not validate_address(self.dmn_voting_address, self.app_config.dash_network):
+                    self.hmn_voting_address = key
+                    self.hmn_voting_privkey = ''
+                    if not validate_address(self.hmn_voting_address, self.app_config.hatch_network):
                         self.edtVotingKey.setFocus()
-                        self.voting_key_validation_err_msg = 'Invalid voting Dash address.'
+                        self.voting_key_validation_err_msg = 'Invalid voting Hatch address.'
         else:
             # spork 15 not active - use the owner private key for voting
-            self.dmn_voting_address = self.dmn_owner_address
-            self.dmn_voting_privkey = self.dmn_owner_privkey
-            self.dmn_voting_key_type = self.dmn_owner_key_type
+            self.hmn_voting_address = self.hmn_owner_address
+            self.hmn_voting_privkey = self.hmn_owner_privkey
+            self.hmn_voting_key_type = self.hmn_owner_key_type
 
         if self.voting_key_validation_err_msg:
             self.upd_voting_key_info(True)
@@ -956,29 +956,29 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                 break_scanning = True
 
         try:
-            tx = self.dashd_intf.getrawtransaction(self.dmn_collateral_tx, 1, skip_cache=True)
+            tx = self.hatchd_intf.getrawtransaction(self.hmn_collateral_tx, 1, skip_cache=True)
         except Exception as e:
             raise Exception('Cannot get the collateral transaction due to the following errror: ' + str(e))
 
         vouts = tx.get('vout')
         if vouts:
-            if self.dmn_collateral_tx_index < len(vouts):
-                vout = vouts[self.dmn_collateral_tx_index]
+            if self.hmn_collateral_tx_index < len(vouts):
+                vout = vouts[self.hmn_collateral_tx_index]
                 spk = vout.get('scriptPubKey')
                 if not spk:
-                    raise Exception(f'The collateral transaction ({self.dmn_collateral_tx}) output '
-                                    f'({self.dmn_collateral_tx_index}) doesn\'t have value in the scriptPubKey '
+                    raise Exception(f'The collateral transaction ({self.hmn_collateral_tx}) output '
+                                    f'({self.hmn_collateral_tx_index}) doesn\'t have value in the scriptPubKey '
                                     f'field.')
                 ads = spk.get('addresses')
                 if not ads or len(ads) < 0:
-                    raise Exception('The collateral transaction output doesn\'t have the Dash address assigned.')
+                    raise Exception('The collateral transaction output doesn\'t have the Hatch address assigned.')
                 if vout.get('valueSat') != 1000e8:
-                    raise Exception('The value of the collateral transaction output is not equal to 1000 Dash.')
+                    raise Exception('The value of the collateral transaction output is not equal to 1000 Hatch.')
 
-                self.dmn_collateral_tx_address = ads[0]
+                self.hmn_collateral_tx_address = ads[0]
             else:
-                raise Exception(f'Transaction {self.dmn_collateral_tx} doesn\'t have output with index: '
-                                f'{self.dmn_collateral_tx_index}')
+                raise Exception(f'Transaction {self.hmn_collateral_tx} doesn\'t have output with index: '
+                                f'{self.hmn_collateral_tx_index}')
         else:
             raise Exception('Invalid collateral transaction')
 
@@ -986,28 +986,28 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         if not self.main_dlg.connect_hardware_wallet():
             return False
 
-        if self.dmn_collateral_tx_address_path:
+        if self.hmn_collateral_tx_address_path:
             try:
-                addr = hw_intf.get_address(self.main_dlg.hw_session, self.dmn_collateral_tx_address_path)
+                addr = hw_intf.get_address(self.main_dlg.hw_session, self.hmn_collateral_tx_address_path)
             except CancelException:
                 return False
 
             msg = ''
-            if addr != self.dmn_collateral_tx_address:
+            if addr != self.hmn_collateral_tx_address:
                 log.warning(
                     f'The address returned by the hardware wallet ({addr}) for the BIP32 path '
-                    f'{self.dmn_collateral_tx_address_path} differs from the address stored the mn configuration '
-                    f'(self.dmn_collateral_tx_address). Need to scan wallet for a correct BIP32 path.')
+                    f'{self.hmn_collateral_tx_address_path} differs from the address stored the mn configuration '
+                    f'(self.hmn_collateral_tx_address). Need to scan wallet for a correct BIP32 path.')
 
                 msg = '<span style="color:red">The BIP32 path of the collateral address from your mn config is incorret.<br></span>' \
-                      f'Trying to find the BIP32 path of the address {self.dmn_collateral_tx_address} in your wallet.' \
+                      f'Trying to find the BIP32 path of the address {self.hmn_collateral_tx_address} in your wallet.' \
                       f'<br>This may take a while (<a href="break">break</a>)...'
-                self.dmn_collateral_tx_address_path = ''
+                self.hmn_collateral_tx_address_path = ''
         else:
-            msg = 'Looking for a BIP32 path of the Dash address related to the masternode collateral.<br>' \
+            msg = 'Looking for a BIP32 path of the Hatch address related to the masternode collateral.<br>' \
                   'This may take a while (<a href="break">break</a>)....'
 
-        if not self.dmn_collateral_tx_address_path and not self.finishing:
+        if not self.hmn_collateral_tx_address_path and not self.finishing:
             lbl = ctrl.get_msg_label_control()
             if lbl:
                 def set():
@@ -1021,14 +1021,14 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
             # fetch the transactions that involved the addresses stored in the wallet - during this
             # all the used addresses are revealed
-            addr = self.bip44_wallet.scan_wallet_for_address(self.dmn_collateral_tx_address, check_break_scanning,
+            addr = self.bip44_wallet.scan_wallet_for_address(self.hmn_collateral_tx_address, check_break_scanning,
                                                              fetch_txes_feeback)
             if not addr:
                 if not break_scanning:
-                    WndUtils.errorMsg(f'Couldn\'t find a BIP32 path of the collateral address ({self.dmn_collateral_tx_address}).')
+                    WndUtils.errorMsg(f'Couldn\'t find a BIP32 path of the collateral address ({self.hmn_collateral_tx_address}).')
                 return False
             else:
-                self.dmn_collateral_tx_address_path = addr.bip32_path
+                self.hmn_collateral_tx_address_path = addr.bip32_path
 
         return True
 
@@ -1036,15 +1036,15 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         cs = None
         if self.current_step == STEP_MN_DATA:
             if self.validate_data():
-                cs = STEP_DASHD_TYPE
+                cs = STEP_HATCHD_TYPE
             else:
                 return
             self.step_stack.append(self.current_step)
 
-        elif self.current_step == STEP_DASHD_TYPE:
-            if self.get_dash_node_type() == NODE_TYPE_PUBLIC_RPC:
+        elif self.current_step == STEP_HATCHD_TYPE:
+            if self.get_hatch_node_type() == NODE_TYPE_PUBLIC_RPC:
                 cs = STEP_AUTOMATIC_RPC_NODE
-            elif self.get_dash_node_type() == NODE_TYPE_OWN:
+            elif self.get_hatch_node_type() == NODE_TYPE_OWN:
                 cs = STEP_MANUAL_OWN_NODE
             else:
                 self.errorMsg('You have to choose one of the two options.')
@@ -1061,13 +1061,13 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                 self.errorMsg('It looks like you have not signed a "protx register_prepare" result.')
                 return
 
-            self.dmn_reg_tx_hash = self.edtManualTxHash.text().strip()
-            if not self.dmn_reg_tx_hash:
+            self.hmn_reg_tx_hash = self.edtManualTxHash.text().strip()
+            if not self.hmn_reg_tx_hash:
                 self.edtManualTxHash.setFocus()
                 self.errorMsg('Invalid transaction hash.')
                 return
             try:
-                bytes.fromhex(self.dmn_reg_tx_hash)
+                bytes.fromhex(self.hmn_reg_tx_hash)
             except Exception:
                 log.warning('Invalid transaction hash.')
                 self.edtManualTxHash.setFocus()
@@ -1116,25 +1116,25 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.previous_step()
 
     @pyqtSlot(bool)
-    def on_rbDMTDashNodeType_toggled(self, active):
+    def on_rbHMTHatchNodeType_toggled(self, active):
         if active:
             self.upd_node_type_info()
 
     @pyqtSlot(bool)
-    def on_rbOwnDashNodeType_toggled(self, active):
+    def on_rbOwnHatchNodeType_toggled(self, active):
         if active:
             self.upd_node_type_info()
 
     def sign_protx_message_with_hw(self, msg_to_sign) -> str:
         sig = WndUtils.call_in_main_thread(
-            hw_intf.hw_sign_message, self.main_dlg.hw_session, self.dmn_collateral_tx_address_path,
+            hw_intf.hw_sign_message, self.main_dlg.hw_session, self.hmn_collateral_tx_address_path,
             msg_to_sign, 'Click the confirmation button on your hardware wallet to sign the ProTx payload message.')
 
-        if sig.address != self.dmn_collateral_tx_address:
+        if sig.address != self.hmn_collateral_tx_address:
             log.error(f'Protx payload signature address mismatch. Is: {sig.address}, should be: '
-                      f'{self.dmn_collateral_tx_address}.')
+                      f'{self.hmn_collateral_tx_address}.')
             raise Exception(f'Protx payload signature address mismatch. Is: {sig.address}, should be: '
-                            f'{self.dmn_collateral_tx_address}.')
+                            f'{self.hmn_collateral_tx_address}.')
         else:
             sig_bin = base64.b64encode(sig.signature)
             payload_sig_str = sig_bin.decode('ascii')
@@ -1171,7 +1171,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
         try:
             try:
-                mn_reg_support = self.dashd_intf.checkfeaturesupport('protx_register', self.app_config.app_version)
+                mn_reg_support = self.hatchd_intf.checkfeaturesupport('protx_register', self.app_config.app_version)
                 # is the "registration" feature enabled on the current rpc node?
                 if not mn_reg_support.get('enabled'):
                     if mn_reg_support.get('message'):
@@ -1182,9 +1182,9 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
                 public_proxy_node = True
 
-                active = self.app_config.feature_register_dmn_automatic.get_value()
+                active = self.app_config.feature_register_hmn_automatic.get_value()
                 if not active:
-                    msg = self.app_config.feature_register_dmn_automatic.get_message()
+                    msg = self.app_config.feature_register_hmn_automatic.get_message()
                     if not msg:
                         msg = 'The functionality of the automatic execution of the ProRegTx command on the ' \
                               '"public" RPC nodes is inactive. Use the manual method or contact the program author ' \
@@ -1200,8 +1200,8 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
                 if not public_proxy_node:
                     try:
                         # find an address to be used as the source of the transaction fees
-                        min_fee = round(1024 * FEE_DUFF_PER_BYTE / 1e8, 8)
-                        balances = self.dashd_intf.listaddressbalances(min_fee)
+                        min_fee = round(1024 * FEE_HUFF_PER_BYTE / 1e8, 8)
+                        balances = self.hatchd_intf.listaddressbalances(min_fee)
                         bal_list = []
                         for addr in balances:
                             bal_list.append({'address': addr, 'amount': balances[addr]})
@@ -1217,19 +1217,19 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
                 set_text(self.lblProtxTransaction1, '<b>1. Preparing a ProRegTx transaction on a remote node...</b>')
 
-                if self.dmn_owner_key_type == InputKeyType.PRIVATE:
-                    owner_key = self.dmn_owner_privkey
+                if self.hmn_owner_key_type == InputKeyType.PRIVATE:
+                    owner_key = self.hmn_owner_privkey
                 else:
-                    owner_key = self.dmn_owner_address
+                    owner_key = self.hmn_owner_address
 
-                params = ['register_prepare', self.dmn_collateral_tx, self.dmn_collateral_tx_index,
-                          self.dmn_ip + ':' + str(self.dmn_tcp_port) if self.dmn_ip else '0', owner_key,
-                          self.dmn_operator_pubkey, self.dmn_voting_address, str(round(self.dmn_operator_reward, 2)),
-                          self.dmn_owner_payout_addr]
+                params = ['register_prepare', self.hmn_collateral_tx, self.hmn_collateral_tx_index,
+                          self.hmn_ip + ':' + str(self.hmn_tcp_port) if self.hmn_ip else '0', owner_key,
+                          self.hmn_operator_pubkey, self.hmn_voting_address, str(round(self.hmn_operator_reward, 2)),
+                          self.hmn_owner_payout_addr]
                 if funding_address:
                     params.append(funding_address)
 
-                call_ret = self.dashd_intf.rpc_call(True, False, 'protx', *tuple(params))
+                call_ret = self.hatchd_intf.rpc_call(True, False, 'protx', *tuple(params))
 
                 call_ret_str = json.dumps(call_ret, default=EncodeDecimal)
                 msg_to_sign = call_ret.get('signMessage', '')
@@ -1269,10 +1269,10 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             # submitting signed transaction
             set_text(self.lblProtxTransaction4, '<b>3. Submitting the signed protx transaction to the remote node...</b>')
             try:
-                self.dmn_reg_tx_hash = self.dashd_intf.rpc_call(True, False, 'protx', 'register_submit', protx_tx,
+                self.hmn_reg_tx_hash = self.hatchd_intf.rpc_call(True, False, 'protx', 'register_submit', protx_tx,
                                                                 payload_sig_str)
 
-                log.debug('protx register_submit returned: ' + str(self.dmn_reg_tx_hash))
+                log.debug('protx register_submit returned: ' + str(self.hmn_reg_tx_hash))
                 set_text(self.lblProtxTransaction4,
                          '<b>3. Submitting the signed protx transaction to the remote node.</b> <span style="'
                          'color:green">Success.</span>')
@@ -1326,17 +1326,17 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
     def update_manual_protx_prepare_command(self):
         addr = self.edtManualFundingAddress.text().strip()
         if addr:
-            valid = validate_address(addr, self.app_config.dash_network)
+            valid = validate_address(addr, self.app_config.hatch_network)
             if valid:
-                if self.dmn_owner_key_type == InputKeyType.PRIVATE:
-                    owner_key = self.dmn_owner_privkey
+                if self.hmn_owner_key_type == InputKeyType.PRIVATE:
+                    owner_key = self.hmn_owner_privkey
                 else:
-                    owner_key = self.dmn_owner_address
+                    owner_key = self.hmn_owner_address
 
-                cmd = f'protx register_prepare "{self.dmn_collateral_tx}" "{self.dmn_collateral_tx_index}" ' \
-                    f'"{self.dmn_ip + ":" + str(self.dmn_tcp_port) if self.dmn_ip else "0"}" ' \
-                    f'"{owner_key}" "{self.dmn_operator_pubkey}" "{self.dmn_voting_address}" ' \
-                    f'"{str(round(self.dmn_operator_reward, 2))}" "{self.dmn_owner_payout_addr}" "{addr}"'
+                cmd = f'protx register_prepare "{self.hmn_collateral_tx}" "{self.hmn_collateral_tx_index}" ' \
+                    f'"{self.hmn_ip + ":" + str(self.hmn_tcp_port) if self.hmn_ip else "0"}" ' \
+                    f'"{owner_key}" "{self.hmn_operator_pubkey}" "{self.hmn_voting_address}" ' \
+                    f'"{str(round(self.hmn_operator_reward, 2))}" "{self.hmn_owner_payout_addr}" "{addr}"'
             else:
                 cmd = 'Enter the valid funding address in the exit box above'
         else:
@@ -1348,7 +1348,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
             self.edtManualProtxSubmit.clear()
             self.edtManualProtxPrepareResult.clear()
             self.edtManualTxHash.clear()
-            self.dmn_reg_tx_hash = ''
+            self.hmn_reg_tx_hash = ''
             self.manual_signed_message = False
 
     def timerEvent(self, event: QTimerEvent):
@@ -1358,7 +1358,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
 
     def check_tx_confirmation(self):
         try:
-            tx = self.dashd_intf.getrawtransaction(self.dmn_reg_tx_hash, 1, skip_cache=True)
+            tx = self.hatchd_intf.getrawtransaction(self.hmn_reg_tx_hash, 1, skip_cache=True)
             conf = tx.get('confirmations')
             if conf:
                 h = tx.get('height')
@@ -1419,7 +1419,7 @@ class RegMasternodeDlg(QDialog, ui_reg_masternode_dlg.Ui_RegMasternodeDlg, WndUt
         self.edtManualTxHash.setText(cl.text())
 
     @pyqtSlot(bool)
-    def on_btnSummaryDMNOperatorKeyCopy_clicked(self, checked):
-        text = self.edtSummaryDMNOperatorKey.text()
+    def on_btnSummaryHMNOperatorKeyCopy_clicked(self, checked):
+        text = self.edtSummaryHMNOperatorKey.text()
         cl = QApplication.clipboard()
         cl.setText(text)

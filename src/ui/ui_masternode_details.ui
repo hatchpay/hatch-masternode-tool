@@ -335,7 +335,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Show Dash address for the entered BIP32 path</string>
+           <string>Show Hatch address for the entered BIP32 path</string>
           </property>
           <property name="text">
            <string/>
@@ -391,7 +391,7 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_10">
         <item>
-         <widget class="QLabel" name="lblDMNTxHash">
+         <widget class="QLabel" name="lblHMNTxHash">
           <property name="minimumSize">
            <size>
             <width>144</width>
@@ -407,7 +407,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="edtDMNTxHash">
+         <widget class="QLineEdit" name="edtHMNTxHash">
           <property name="clearButtonEnabled">
            <bool>true</bool>
           </property>
@@ -424,9 +424,9 @@
          </widget>
         </item>
         <item>
-         <widget class="QToolButton" name="btnFindDMNTxHash">
+         <widget class="QToolButton" name="btnFindHMNTxHash">
           <property name="toolTip">
-           <string>Find DMN TX hash based on the ip/port or collateral tx</string>
+           <string>Find HMN TX hash based on the ip/port or collateral tx</string>
           </property>
           <property name="text">
            <string>Find</string>
@@ -682,7 +682,7 @@
   <tabstop>edtCollateralPath</tabstop>
   <tabstop>edtCollateralTxHash</tabstop>
   <tabstop>edtCollateralTxIndex</tabstop>
-  <tabstop>edtDMNTxHash</tabstop>
+  <tabstop>edtHMNTxHash</tabstop>
   <tabstop>edtOwnerKey</tabstop>
   <tabstop>edtOperatorKey</tabstop>
   <tabstop>edtVotingKey</tabstop>

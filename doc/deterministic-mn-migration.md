@@ -9,67 +9,67 @@ transaction (**ProRegTx**) in which all the necessary information is
 provided.
 
 The scope covered in this document applies only to what directly relates
-to the DMT functionalities and it focuses on the migration from
+to the HMT functionalities and it focuses on the migration from
 nondeterministic to deterministic (DIP3) masternodes. To get familiar
 with a broader context in this matter, read the following document:
-[Dash 0.13 Upgrade Procedure](https://docs.dash.org/en/stable/masternodes/dip3-upgrade.html#masternode-registration-from-dmt),
+[Hatch 0.13 Upgrade Procedure](https://docs.hatch.ga/en/stable/masternodes/dip3-upgrade.html#masternode-registration-from-hmt),
 which I highly recommend.
 
 It's worth noting here, that this process can be performed completely
-independently from DMT (using the Dash Core wallet), however, the
-inclusion of this function in DMT is aimed at the maximum facilitation
+independently from HMT (using the Hatch Core wallet), however, the
+inclusion of this function in HMT is aimed at the maximum facilitation
 of this process.
 
 ### Contents
   * [Preliminary checks](#preliminary-checks) 
   * [Use cases covered by this document](#use-cases-covered-by-this-document)  
-  * [DMN registration methods](#dmn-registration-methods) 
+  * [HMN registration methods](#hmn-registration-methods) 
     * [Automatic method using "public" RPC nodes](#automatic-method-using-public-rpc-nodes-m1)
     * [Automatic method using own RPC node](#automatic-method-using-own-rpc-node-m2)
-    * [Manual method using own Dash node](#manual-method-using-own-dash-node-m3)
+    * [Manual method using own Hatch node](#manual-method-using-own-hatch-node-m3)
   * [FAQ](#faq)
 
 ### Glossary
-**DIP3**: Dash blockchain parameter, enabling the Deterministic
+**DIP3**: Hatch blockchain parameter, enabling the Deterministic
 Masternode Lists (**DML**) feature. On mainnet it has been activated
 with the block 1,028,160 being mined. From that moment, you can start
 adding masternodes to DML, however the new list will not be used until
 **Spork 15** is activated.
 
-**Spork 15**: a parameter causing the Dash network to switch from the
+**Spork 15**: a parameter causing the Hatch network to switch from the
 old (non-deterministic) masternode list to DML. The exact date of the
 activation of Spork 15 is not currently known - it will mostly depend on
 the pace of **DIP3** adoption among masternodes. The most probable
 moment for this to happen is when about 80% of masternodes are added to
-DML, but the final decision will be made by the _Dash Core Group_
+DML, but the final decision will be made by the _Hatch Core Group_
 members, who will choose the most optimal timing for this.
 
 **ProRegTx**: type of special transaction related to the registration of
 deterministic masternodes.
 
-**RPC node**: a Dash node providing an interface for external apps to
-communicate with the Dash network. DashMasternodeTool (**DMT**) requires
+**RPC node**: a Hatch node providing an interface for external apps to
+communicate with the Hatch network. HatchMasternodeTool (**HMT**) requires
 connection with such node to carry out the most of its
 functionalities.
 
-**DMN**: a Deterministic Masternode - a masternode which has been added
+**HMN**: a Deterministic Masternode - a masternode which has been added
 to the Deterministic Masternode List.
 
 ## Preliminary checks
 Before starting the process you should verify the masternode-related 
-information kept in DMT. In the screenshot below, the fields important
+information kept in HMT. In the screenshot below, the fields important
 in the process are marked with an ellipse:
 
-![Prerequisites](img/dmn/config-verification.png)
+![Prerequisites](img/hmn/config-verification.png)
 
 ### Checklist
 - Check if the IP address and TCP port number are correct.
 - Check if the collateral transaction hash/index are correct.
 - Check if the collateral address and the related BIP32 path are
-  correct. Verification of this in DMT:  
-  ![Prerequisites](img/dmn/address-bip32path-verification.png)
+  correct. Verification of this in HMT:  
+  ![Prerequisites](img/hmn/address-bip32path-verification.png)
 - Close all other programs that could communicate with the same hardware
-  wallet device which you use in DMT (eg. Trezor online wallet). Two (or
+  wallet device which you use in HMT (eg. Trezor online wallet). Two (or
   more) programs communicating with the same device simultaneously can
   interfere with each other's communication in such a way that they may
   receive incorrect results.
@@ -94,17 +94,17 @@ ones:
 >  convenient (for them) and the most secure (for both parties) method.
 
 
-## DMN registration methods
+## HMN registration methods
 * [Automatic method using "public" RPC nodes (M1)](#automatic-method-using-public-rpc-nodes-m1) 
 * [Automatic method using own RPC node (M2)](#automatic-method-using-own-rpc-node-m2) 
-* [Manual method using own Dash node (M3)](#manual-method-using-own-dash-node-m3)
+* [Manual method using own Hatch node (M3)](#manual-method-using-own-hatch-node-m3)
 
-In the automatic method, the majority of activities are performed by DMT
+In the automatic method, the majority of activities are performed by HMT
 "in the background" and the required user interaction basically boils
 down to clicking the **Continue** button.
 
 On the other hand, the manual method requires executing commands from
-the Dash Core debug console and copying the results back to DMT, so it
+the Hatch Core debug console and copying the results back to HMT, so it
 is dedicated to more advanced users, who are not afraid of
 using a terminal-type user interface.
 
@@ -112,15 +112,15 @@ using a terminal-type user interface.
 Each method has its pros and cons that you can read about in individual
 chapters, but here are some tips to help you choose the best method for
 you :
-- If you have your own Dash Core synchronized with the network with 
+- If you have your own Hatch Core synchronized with the network with 
   enabled RPC and indexing, choose either
   [Automatic method using own RPC node](#automatic-method-using-own-rpc-node-m2)
   or
-  [Manual method using own Dash node](#manual-method-using-own-dash-node-m3).
-- If you have your own Dash Core synchronized with the network but
+  [Manual method using own Hatch node](#manual-method-using-own-hatch-node-m3).
+- If you have your own Hatch Core synchronized with the network but
   without the RPC interface or indexing enabled, choose
-  [Manual method using own Dash node](#manual-method-using-own-dash-node-m3).
-- If you do not have and you can not easily run Dash Core (for example,
+  [Manual method using own Hatch node](#manual-method-using-own-hatch-node-m3).
+- If you do not have and you can not easily run Hatch Core (for example,
   you don't have disk space for blockchain data) or you feel
   uncomfortable using a terminal-type user interface, choose
   [Automatic method using "public" RPC nodes](#automatic-method-using-public-rpc-nodes-m1).
@@ -130,14 +130,14 @@ The advantage of this method is its simplicity but the disadvantage is
 the need to send the owner private key to the remote RPC node. This key
 is necessary to sign the payload data being part of the ProRegTx
 transaction, which is created on the remote node
-([details](https://github.com/dashpay/dips/blob/master/dip-0003.md#registering-a-masternode-proregtx)).
+([details](https://github.com/hatchpay/dips/blob/master/dip-0003.md#registering-a-masternode-proregtx)).
 If this raises your concerns (eg. you do not trust the RPC node
 operator), choose another method.
 
->  **Note 1.** The RPC nodes preconfigured in DMT (alice, luna, suzy)
->  are managed by the author of the DMT application (ie by me). For my
+>  **Note 1.** The RPC nodes preconfigured in HMT (alice, luna, suzy)
+>  are managed by the author of the HMT application (ie by me). For my
 >  part, I can ensure that no sensitive information (such as private
->  keys) is logged anywhere. All parameters are passed to the Dash
+>  keys) is logged anywhere. All parameters are passed to the Hatch
 >  daemon, and after signing the transaction they disappear.
 
 
@@ -145,32 +145,32 @@ operator), choose another method.
 >  wrong hands? Taking into possesion of this key does not allow
 >  collateral theft (which is controlled by hardware wallet), but may
 >  have some financial aspect. Namely, it allows sending a
->  [ProUpRegTx](https://github.com/dashpay/dips/blob/master/dip-0003.md#updating-registrar-of-masternode-proupregtx)
+>  [ProUpRegTx](https://github.com/hatchpay/dips/blob/master/dip-0003.md#updating-registrar-of-masternode-proupregtx)
 >  transaction, which allows to change the payout address. In an extreme
 >  case, you may then lose your masternode reward - one or a few -
 >  depending on when you would notice the change. Protection against
 >  this is quite simple - it is enough to monitor changes in the payout
->  address and owner key using data available on the Dash network. This
->  feature is implemented in DMT under the **Get status** button. If
+>  address and owner key using data available on the Hatch network. This
+>  feature is implemented in HMT under the **Get status** button. If
 >  there is a change in relation to the data stored in the
 >  configuration, a warning will be displayed. If something like that
 >  happens, you must immediately generate a new ProRegTx transaction
 >  with a new set of keys.
 
 #### Step 1. Select the masternode you want to migrate
-You do this in the main DMT window.
+You do this in the main HMT window.
 
 #### Step 2. Start _Masternode migration wizard_ 
 Do it by clicking the **Send ProRegTx** button on the bottom right of
-the main DMT window.
+the main HMT window.
 
-![Start wizard](img/dmn/start-wizard.png)
+![Start wizard](img/hmn/start-wizard.png)
 
 > Note, the **Send ProRegTx** button is only visible if the DIP3
 > parameter is active. If you are sure that this is the case and the
-> button is still not visible, make DMT to establish the connection with
-> the Dash network to force it to read the current network parameters.
-> You can do this by clicking the **Check Dash Network Connection**
+> button is still not visible, make HMT to establish the connection with
+> the Hatch network to force it to read the current network parameters.
+> You can do this by clicking the **Check Hatch Network Connection**
 > toolbar button.
 
 
@@ -180,7 +180,7 @@ steps. Some of them have been copied from the masternode configuration,
 while the remaining ones (private keys) are filled with auto-generated
 values.
 
-![Input data](img/dmn/wizard-page1.png)
+![Input data](img/hmn/wizard-page1.png)
 
 **Payout address**  
 The only data derived from the configurations you might want to change
@@ -199,7 +199,7 @@ Other actions in this step depend on your use case:
   operator public key. Click the **use pubkey** link next to the
   **Operator private key** label then enter the public key in the edit
   field on the right:  
-  ![Operator public key](img/dmn/wizard-page1-uc2.png)
+  ![Operator public key](img/hmn/wizard-page1-uc2.png)
 
 > Note: in the period when Spork 15 is inactive, the **Voting private
 > key** field will not be shown - in this case the voting key has to be
@@ -209,14 +209,14 @@ Other actions in this step depend on your use case:
 After completing the data, click **Continue**.
 
 #### Step 4. Select the registration method 
-Click the option **Remote Dash RPC Node (automatic method)**
+Click the option **Remote Hatch RPC Node (automatic method)**
 
-![Method](img/dmn/wizard-page2-automatic.png)
+![Method](img/hmn/wizard-page2-automatic.png)
 
 then click **Continue**
 
 #### Step 5. Confirm the message signing operation on your hardware wallet  
-At this step, the wizard executes two operations on the remote Dash node
+At this step, the wizard executes two operations on the remote Hatch node
 (**register_prepare** and **register_submit**), between which you will
 be asked to sign a special message with the hardware wallet controlling
 the masternode collateral. The resulting signature is supposed to prove
@@ -224,23 +224,23 @@ that you really have the collateral private key under your control and
 that you're not trying to hijack a someone else's collateral
 transaction.
 
-![HW confirmation](img/dmn/wizard-page3-hw-conf.png)
+![HW confirmation](img/hmn/wizard-page3-hw-conf.png)
 
 If the operation completes without an error, the wizard will
 automatically go to the summary page.
 
 #### Step 6. Summary - final actions
-![Summary](img/dmn/wizard-summary.png)  
+![Summary](img/hmn/wizard-summary.png)  
 
 The summary page will show all relevant values (eg. private keys) used
 during the process. Most of them will be copied to the masternode
-configuration in DMT, nevertheless it's worth saving them in a separate
+configuration in HMT, nevertheless it's worth saving them in a separate
 file.
 
 The last thing to do here depends on your use case:
 * **UC1**: as suggested on the screen, copy the `masternodeblsprivkey =
-  ...` line into the dash.conf file on the server running your
-  masternode, then restart the dashd daemon..
+  ...` line into the hatch.conf file on the server running your
+  masternode, then restart the hatchd daemon..
 * **UC2**: your operator should carry out the above-mentioned operation
   by himself , so in this case you don't need to do anything.
 
@@ -251,16 +251,16 @@ After closing the wizard and going back to the main window, you will
 notice that the masternode configuration has changed to "deterministic"
 in which several additional fields are displayed.
 
-![Config - deterministic](img/dmn/config-mn-deterministic.png)
+![Config - deterministic](img/hmn/config-mn-deterministic.png)
 
 The process has come to an end at this point.
 
 ## Automatic method using own RPC node (M2)
 This method works identically to the M1 method, but utilizes your own
-RPC node to interact with the Dash network. Its advantage is that the
+RPC node to interact with the Hatch network. Its advantage is that the
 owner private key (which needs to be sent to the node) is under your
 control all the time. The drawback of this method is the need to prepare
-your own Dash full node with enabled RPC interface and the address
+your own Hatch full node with enabled RPC interface and the address
 indexing being enabled.
 
 #### Step 1. Configure your own RPC node
@@ -268,11 +268,11 @@ indexing being enabled.
 Follow the steps described here:
 [Connection to a local node](doc/config-connection-direct.md)
 
-Remember to configure a connection between DMT and your RPC node and to
+Remember to configure a connection between HMT and your RPC node and to
 turn off all others.
 
 > Note, that the RPC node has nothing to do with your masternode - this
-> may be your local Dash Core instance, and that's actually the most
+> may be your local Hatch Core instance, and that's actually the most
 > convenient and safe way in this scenario.
 
 #### Step 2. Prepare funds to cover transaction fees
@@ -288,15 +288,15 @@ Follow the steps:
 [Automatic method using "public" RPC nodes](#automatic-method-using-public-rpc-nodes-m1)
 
 
-## Manual method using own Dash node (M3)
+## Manual method using own Hatch node (M3)
 The advantage of this method is that no private keys go outside your
 computer and that to perform the steps it's enough to have access to a
-Dash Core wallet, not necessarily with the RPC interface and indexing
+Hatch Core wallet, not necessarily with the RPC interface and indexing
 enabled. The disadvantage is the need to manually execute some commands
-from the Dash Core debug console, which may not be very comfortable for
+from the Hatch Core debug console, which may not be very comfortable for
 some people.
 
-#### Step 1. Install Dash Core and synchronize it with the network
+#### Step 1. Install Hatch Core and synchronize it with the network
 
 #### Step 2. Prepare funds to cover transaction fees
 See:
@@ -310,36 +310,36 @@ See:
 See: [Verify and update the data if necessary](#step-3-verify-and-update-the-data-if-necessary)
 
 #### Step 5. Select the registratin method 
-Click the option **Your own Dash-Qt wallet (manual method)**
+Click the option **Your own Hatch-Qt wallet (manual method)**
  
-![Config - deterministic](img/dmn/wizard-page2-manual.png)  
+![Config - deterministic](img/hmn/wizard-page2-manual.png)  
 
 Click **Continue**
 
 #### Step 6. Enter the address from which the transaction fee will be charged
 This is the address to which you've sent funds in the previous steps.
 
-![Fee source address](img/dmn/wizard-page3-manual-a.png)
+![Fee source address](img/hmn/wizard-page3-manual-a.png)
   
-#### Step 7. Copy the command text generated by DMT in field "2"  
+#### Step 7. Copy the command text generated by HMT in field "2"  
 The text contains the `protx register_submit` command with all the
 necessary parameters.
 
-![Copy protx register_ ](img/dmn/wizard-page3-manual-b.png)
+![Copy protx register_ ](img/hmn/wizard-page3-manual-b.png)
 
 Hint: you can use the **Copy** button on the right.
   
-#### Step 8. Execute the command in the Dash Core debug console
+#### Step 8. Execute the command in the Hatch Core debug console
 Paste the command into the and edit box at the bottom of Debug console
 then press **Enter**.
   
 #### Step 9. Copy the output of the command 
 Select and copy the output text, including braces but nothing more.
 
-![Register_prepare results](img/dmn/wizard-page3-manual-c.png)
+![Register_prepare results](img/hmn/wizard-page3-manual-c.png)
   
-#### Step 10. Paste the command output into field "3" (DMT) and click _Sign message with hardware wallet_  
-![Sign message](img/dmn/wizard-page3-manual-d.png)
+#### Step 10. Paste the command output into field "3" (HMT) and click _Sign message with hardware wallet_  
+![Sign message](img/hmn/wizard-page3-manual-d.png)
 
 Hint: you can use the **Paste** button on the rigth. 
 
@@ -349,19 +349,19 @@ Confirm the operation on your hardware wallet.
 The text contains the `protx register_submit` command with all the
 necessary parameters.
 
-![Register_submit](img/dmn/wizard-page3-manual-e.png)
+![Register_submit](img/hmn/wizard-page3-manual-e.png)
 
 Hint: you can use the **Copy** button on the right.
  
-#### Step 12. Execute the command in the Dash Core debug console
+#### Step 12. Execute the command in the Hatch Core debug console
   
 #### Step 13. Copy the protx transaction number resulting from the command
-![Protx tx hash](img/dmn/wizard-page3-manual-f.png)
+![Protx tx hash](img/hmn/wizard-page3-manual-f.png)
 
 This string will from now on identify your deterministic masternode.
 
-#### Step 14. Paste the copied transaction number into field "5" in DMT.
-![Protx tx hash](img/dmn/wizard-page3-manual-g.png)
+#### Step 14. Paste the copied transaction number into field "5" in HMT.
+![Protx tx hash](img/hmn/wizard-page3-manual-g.png)
 
 Wcisnij przycisk `Continue`.
 
@@ -380,22 +380,22 @@ following:
   
 #### Can I modify the payout address without resetting the place in the payment queue?
 Yes, you can do it. For this, you must send a **ProUpRegTx** transaction
-from Dash Core - as of now, DMT does not have a user interface
+from Hatch Core - as of now, HMT does not have a user interface
 supporting this functionality, so you will need to manually execute
-commands from the Dash Core Debug console.
+commands from the Hatch Core Debug console.
 
 **Here are the steps**
-1. Start Dash Core wallet and wait for it to synchronize with the
+1. Start Hatch Core wallet and wait for it to synchronize with the
    network
 
-2. Import the owner private key to the Dash Core wallet if you have not done it
+2. Import the owner private key to the Hatch Core wallet if you have not done it
    before
    
     2.1. If your wallet is protected by passphrase (recommended), unlock
     it by issuing the command  
     `walletpassphrase "your-wallet-passphrase" 600`
   
-    2.2. Copy the owner private key to clipboard (eg. from DMT
+    2.2. Copy the owner private key to clipboard (eg. from HMT
     configuration).
     
     2.3. Import the key by executing the following command in Debug
@@ -404,21 +404,21 @@ commands from the Dash Core Debug console.
     
 3. Send an update registrar transaction (**ProUpRegTx**)
     
-    3.1. Find an address in Dash Core you are going to cover transaction 
+    3.1. Find an address in Hatch Core you are going to cover transaction 
     fees from. The address you choose, will be used as the **feeSourceAddress** 
     parameter in next steps. To list addresses with their balances, execute the 
     following command:  
     `listaddressbalances`  
     
     3.2. Get the following information from your masternode configuration: 
-    - `proTxHash`: copy the value from the **DMN TX hash** edit box
+    - `proTxHash`: copy the value from the **HMN TX hash** edit box
     - `operatorPubKey`: change the **Operator private key** view type 
     to **public key**, using the context menu associated with the "eye" 
     button on the right, then copy the public key from the corresponding 
     edit box
     - `votingAddress`: change the **Voting private key** view type to
-    **Dash address**, using the context menu associated with the "eye" 
-    button on the right, then copy the Dash address from the corresponding 
+    **Hatch address**, using the context menu associated with the "eye" 
+    button on the right, then copy the Hatch address from the corresponding 
     edit box
 
     3.3. Execute the update registrar command from the Debug console 
@@ -437,12 +437,12 @@ ready to provide services again. This is done using the **ProUpServTx**
 transaction.
 
 **Here are the steps**
-1. Start Dash Core wallet and wait for it to synchronize with the
+1. Start Hatch Core wallet and wait for it to synchronize with the
    network
 
 2. Send an update registrar transaction (**ProUpServTx**)
 
-    2.1. Find an address in Dash Core you are going to cover transaction
+    2.1. Find an address in Hatch Core you are going to cover transaction
     fees from. The address you choose, will be used as the
     **feeSourceAddress** parameter in next steps. To list addresses
     with their balances, execute the following command:  
@@ -450,12 +450,12 @@ transaction.
     
     2.2. Get the following information from your masternode
     configuration:
-    - `proTxHash`: copy the value from the **DMN TX hash** edit box
+    - `proTxHash`: copy the value from the **HMN TX hash** edit box
     - `ipAndPort`: the IP addres and TCP port in the format *IP:Port*
     - `operatorKey`: copy the value from **Operator private key** edit 
     box
 
-    2.3. Execute the update service command from the Dash Core Debug
+    2.3. Execute the update service command from the Hatch Core Debug
     console  
     `protx update_service "protxHash" "ipAndPort" "operatorKey"
     "operatorPayoutAddress" "feeSourceAddress"`

@@ -8,9 +8,9 @@ from bitcoinrpc.authproxy import JSONRPCException
 
 import app_cache
 from app_config import MasternodeConfig, AppConfig, InputKeyType
-from app_defs import FEE_DUFF_PER_BYTE
-from dash_utils import validate_address
-from dashd_intf import DashdInterface
+from app_defs import FEE_HUFF_PER_BYTE
+from hatch_utils import validate_address
+from hatchd_intf import HatchdInterface
 from ui import ui_revoke_mn_dlg
 from wnd_utils import WndUtils, ProxyStyleNoFocusRect
 
@@ -22,7 +22,7 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
     def __init__(self,
                  main_dlg,
                  app_config: AppConfig,
-                 dashd_intf: DashdInterface,
+                 hatchd_intf: HatchdInterface,
                  masternode: MasternodeConfig):
         QDialog.__init__(self, main_dlg)
         ui_revoke_mn_dlg.Ui_RevokeMnDlg.__init__(self)
@@ -30,9 +30,9 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
         self.main_dlg = main_dlg
         self.masternode = masternode
         self.app_config = app_config
-        self.dashd_intf = dashd_intf
-        self.dmn_protx_hash = self.masternode.dmn_tx_hash
-        self.dmn_actual_operator_pubkey = ""
+        self.hatchd_intf = hatchd_intf
+        self.hmn_protx_hash = self.masternode.hmn_tx_hash
+        self.hmn_actual_operator_pubkey = ""
         self.revocation_reason = 0
         self.show_manual_commands = False
         self.setupUi()
@@ -82,31 +82,31 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
     def read_data_from_network(self):
         try:
             protx = None
-            if not self.dmn_protx_hash:
-                for protx in self.dashd_intf.protx('list', 'registered', True):
+            if not self.hmn_protx_hash:
+                for protx in self.hatchd_intf.protx('list', 'registered', True):
                     protx_state = protx.get('state')
                     if (protx_state and protx_state.get(
                             'service') == self.masternode.ip + ':' + self.masternode.port) or \
                             (protx.get('collateralHash') == self.masternode.collateralTx and
                              str(protx.get('collateralIndex')) == str(self.masternode.collateralTxIndex)):
-                        self.dmn_protx_hash = protx.get("proTxHash")
+                        self.hmn_protx_hash = protx.get("proTxHash")
                         break
-                if not self.dmn_protx_hash:
+                if not self.hmn_protx_hash:
                     raise Exception("Couldn't find protx hash for this masternode. Enter the protx hash value in your"
                                     " configuration.")
 
             if not protx:
                 try:
-                    protx = self.dashd_intf.protx('info', self.dmn_protx_hash)
+                    protx = self.hatchd_intf.protx('info', self.hmn_protx_hash)
                 except Exception as e:
                     if str(e).find('not found') >= 0:
                         raise Exception(f'A protx transaction with this hash does not exist or is inactive: '
-                                        f'{self.dmn_protx_hash}.')
+                                        f'{self.hmn_protx_hash}.')
                     else:
                         raise
 
             status = protx.get('state', dict)
-            self.dmn_actual_operator_pubkey = status.get('pubKeyOperator')
+            self.hmn_actual_operator_pubkey = status.get('pubKeyOperator')
         except Exception as e:
             logging.exception('An exception occurred while reading protx information')
             raise
@@ -130,10 +130,10 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
         self.update_ctrls_state()
 
     def validate_data(self):
-        if self.masternode.dmn_operator_key_type != InputKeyType.PRIVATE:
+        if self.masternode.hmn_operator_key_type != InputKeyType.PRIVATE:
             raise Exception('The operator private key is required.')
 
-        if self.masternode.get_dmn_operator_pubkey() != self.dmn_actual_operator_pubkey:
+        if self.masternode.get_hmn_operator_pubkey() != self.hmn_actual_operator_pubkey:
             raise Exception('The operator key from your configuration does not match the key published on the network.')
 
         self.revocation_reason = self.cboReason.currentIndex()
@@ -141,11 +141,11 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
     def update_manual_cmd_info(self):
         try:
             self.validate_data()
-            cmd = f'protx revoke "{self.dmn_protx_hash}" "{self.masternode.dmn_operator_private_key}" ' \
+            cmd = f'protx revoke "{self.hmn_protx_hash}" "{self.masternode.hmn_operator_private_key}" ' \
                 f'{self.revocation_reason} "<span style="color:green">feeSourceAddress</span>"'
             msg = '<ol>' \
-                  '<li>Start a Dash Core wallet with sufficient funds to cover a transaction fee.</li>'
-            msg += '<li>Execute the following command in the Dash Core debug console:<br><br>'
+                  '<li>Start a Hatch Core wallet with sufficient funds to cover a transaction fee.</li>'
+            msg += '<li>Execute the following command in the Hatch Core debug console:<br><br>'
             msg += '  <code style=\"background-color:#e6e6e6\">' + cmd + '</code></li><br>'
             msg += 'Replace <span style="color:green">feeSourceAddress</span> with the address being the ' \
                    'source of the transaction fee.'
@@ -171,13 +171,13 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
             funding_address = ''
 
             params = ['revoke',
-                      self.dmn_protx_hash,
-                      self.masternode.dmn_operator_private_key,
+                      self.hmn_protx_hash,
+                      self.masternode.hmn_operator_private_key,
                       self.revocation_reason,
                       funding_address]
 
             try:
-                revoke_support = self.dashd_intf.checkfeaturesupport('protx_revoke',
+                revoke_support = self.hatchd_intf.checkfeaturesupport('protx_revoke',
                                                                           self.app_config.app_version)
                 if not revoke_support.get('enabled'):
                     if revoke_support.get('message'):
@@ -202,8 +202,8 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
             if not public_proxy_node:
                 try:
                     # find an address to be used as the source of the transaction fees
-                    min_fee = round(1024 * FEE_DUFF_PER_BYTE / 1e8, 8)
-                    balances = self.dashd_intf.listaddressbalances(min_fee)
+                    min_fee = round(1024 * FEE_HUFF_PER_BYTE / 1e8, 8)
+                    balances = self.hatchd_intf.listaddressbalances(min_fee)
                     bal_list = []
                     for addr in balances:
                         bal_list.append({'address': addr, 'amount': balances[addr]})
@@ -217,7 +217,7 @@ class RevokeMnDlg(QDialog, ui_revoke_mn_dlg.Ui_RevokeMnDlg, WndUtils):
                                     "public RPC node and the funding address for the transaction fee will "
                                     "be estimated during the `update_registrar` call")
 
-            upd_tx_hash = self.dashd_intf.rpc_call(True, False, 'protx', *params)
+            upd_tx_hash = self.hatchd_intf.rpc_call(True, False, 'protx', *params)
 
             if upd_tx_hash:
                 logging.info('revoke successfully executed, tx hash: ' + upd_tx_hash)

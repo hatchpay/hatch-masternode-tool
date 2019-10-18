@@ -7,10 +7,10 @@ from bitcoinrpc.authproxy import JSONRPCException
 
 import app_cache
 from app_config import MasternodeConfig, AppConfig, InputKeyType
-from app_defs import FEE_DUFF_PER_BYTE
-from dash_utils import wif_privkey_to_address, generate_wif_privkey, generate_bls_privkey, validate_address, \
+from app_defs import FEE_HUFF_PER_BYTE
+from hatch_utils import wif_privkey_to_address, generate_wif_privkey, generate_bls_privkey, validate_address, \
     bls_privkey_to_pubkey, validate_wif_privkey
-from dashd_intf import DashdInterface
+from hatchd_intf import HatchdInterface
 from ui import ui_upd_mn_registrar_dlg
 from wnd_utils import WndUtils, ProxyStyleNoFocusRect
 
@@ -21,7 +21,7 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
     def __init__(self,
                  main_dlg,
                  app_config: AppConfig,
-                 dashd_intf: DashdInterface,
+                 hatchd_intf: HatchdInterface,
                  masternode: MasternodeConfig,
                  on_upd_success_callback: Callable,
                  show_upd_payout: bool,
@@ -33,20 +33,20 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         self.main_dlg = main_dlg
         self.masternode = masternode
         self.app_config = app_config
-        self.dashd_intf = dashd_intf
+        self.hatchd_intf = hatchd_intf
         self.on_upd_success_callback = on_upd_success_callback
-        self.dmn_operator_key_type = InputKeyType.PRIVATE
-        self.dmn_voting_key_type = InputKeyType.PRIVATE
-        self.dmn_protx_hash = self.masternode.dmn_tx_hash
-        self.dmn_owner_address = ""
-        self.dmn_prev_operator_pubkey = ""
-        self.dmn_prev_voting_address = ""
-        self.dmn_prev_payout_address = ""
-        self.dmn_new_operator_pubkey = ""
-        self.dmn_new_operator_privkey = ""
-        self.dmn_new_voting_address = ""
-        self.dmn_new_voting_privkey = ""
-        self.dmn_new_payout_address = ""
+        self.hmn_operator_key_type = InputKeyType.PRIVATE
+        self.hmn_voting_key_type = InputKeyType.PRIVATE
+        self.hmn_protx_hash = self.masternode.hmn_tx_hash
+        self.hmn_owner_address = ""
+        self.hmn_prev_operator_pubkey = ""
+        self.hmn_prev_voting_address = ""
+        self.hmn_prev_payout_address = ""
+        self.hmn_new_operator_pubkey = ""
+        self.hmn_new_operator_privkey = ""
+        self.hmn_new_voting_address = ""
+        self.hmn_new_voting_privkey = ""
+        self.hmn_new_payout_address = ""
         self.show_upd_payout = show_upd_payout
         self.show_upd_operator = show_upd_operator
         self.show_upd_voting = show_upd_voting
@@ -99,34 +99,34 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
     def read_data_from_network(self):
         try:
             protx = None
-            if not self.dmn_protx_hash:
-                for protx in self.dashd_intf.protx('list', 'registered', True):
+            if not self.hmn_protx_hash:
+                for protx in self.hatchd_intf.protx('list', 'registered', True):
                     protx_state = protx.get('state')
                     if (protx_state and protx_state.get(
                             'service') == self.masternode.ip + ':' + self.masternode.port) or \
                             (protx.get('collateralHash') == self.masternode.collateralTx and
                              str(protx.get('collateralIndex')) == str(self.masternode.collateralTxIndex)):
-                        self.dmn_protx_hash = protx.get("proTxHash")
+                        self.hmn_protx_hash = protx.get("proTxHash")
                         break
-                if not self.dmn_protx_hash:
+                if not self.hmn_protx_hash:
                     raise Exception("Couldn't find protx hash for this masternode. Enter the protx hash value in your"
                                     " configuration.")
 
             if not protx:
                 try:
-                    protx = self.dashd_intf.protx('info', self.dmn_protx_hash)
+                    protx = self.hatchd_intf.protx('info', self.hmn_protx_hash)
                 except Exception as e:
                     if str(e).find('not found') >= 0:
                         raise Exception(f'A protx transaction with this hash does not exist or is inactive: '
-                                        f'{self.dmn_protx_hash}.')
+                                        f'{self.hmn_protx_hash}.')
                     else:
                         raise
 
             status = protx.get('state', dict)
-            self.dmn_prev_operator_pubkey = status.get('pubKeyOperator')
-            self.dmn_prev_voting_address = status.get('votingAddress')
-            self.dmn_prev_payout_address = status.get('payoutAddress')
-            self.dmn_owner_address = status.get('ownerAddress')
+            self.hmn_prev_operator_pubkey = status.get('pubKeyOperator')
+            self.hmn_prev_voting_address = status.get('votingAddress')
+            self.hmn_prev_payout_address = status.get('payoutAddress')
+            self.hmn_owner_address = status.get('ownerAddress')
 
         except Exception as e:
             logging.exception('An exception occurred while reading protx information')
@@ -136,22 +136,22 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         try:
             # if the operator key from the current mn configuration doesn't match the key stored on the network
             # use the key from the configuration as an initial value
-            if self.masternode.get_dmn_operator_pubkey() != self.dmn_prev_operator_pubkey:
-                if self.masternode.dmn_operator_key_type == InputKeyType.PRIVATE:
-                    self.edtOperatorKey.setText(self.masternode.dmn_operator_private_key)
+            if self.masternode.get_hmn_operator_pubkey() != self.hmn_prev_operator_pubkey:
+                if self.masternode.hmn_operator_key_type == InputKeyType.PRIVATE:
+                    self.edtOperatorKey.setText(self.masternode.hmn_operator_private_key)
                 else:
-                    self.edtOperatorKey.setText(self.masternode.dmn_operator_public_key)
-                self.dmn_operator_key_type = self.masternode.dmn_operator_key_type
+                    self.edtOperatorKey.setText(self.masternode.hmn_operator_public_key)
+                self.hmn_operator_key_type = self.masternode.hmn_operator_key_type
 
             # if the voting key from the current mn configuration doesn't match the key stored on the network
             # use the key from the configuration as an initial value
-            if self.masternode.get_dmn_voting_public_address(self.app_config.dash_network) != \
-                    self.dmn_prev_voting_address:
-                if self.masternode.dmn_voting_key_type == InputKeyType.PRIVATE:
-                    self.edtVotingKey.setText(self.masternode.dmn_voting_private_key)
+            if self.masternode.get_hmn_voting_public_address(self.app_config.hatch_network) != \
+                    self.hmn_prev_voting_address:
+                if self.masternode.hmn_voting_key_type == InputKeyType.PRIVATE:
+                    self.edtVotingKey.setText(self.masternode.hmn_voting_private_key)
                 else:
-                    self.edtVotingKey.setText(self.masternode.dmn_voting_address)
-                self.dmn_voting_key_type = self.masternode.dmn_voting_key_type
+                    self.edtVotingKey.setText(self.masternode.hmn_voting_address)
+                self.hmn_voting_key_type = self.masternode.hmn_voting_key_type
 
         except Exception as e:
             logging.exception('An exception occurred while processing the initial data')
@@ -168,15 +168,15 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
 
         def get_label_text(prefix:str, key_type: str, tooltip_anchor: str, style: str):
             lbl = prefix + ' ' + \
-                  {'privkey': 'private key', 'pubkey': 'public key', 'address': 'Dash address'}.get(key_type, '???')
+                  {'privkey': 'private key', 'pubkey': 'public key', 'address': 'Hatch address'}.get(key_type, '???')
 
             change_mode = f'(<a href="{tooltip_anchor}">use {tooltip_anchor}</a>)'
             return f'<table style="float:right;{style_to_color(style)}"><tr><td><b>{lbl}</b></td><td>{change_mode}' \
                 f'</td></tr></table>'
 
-        self.edtPayoutAddress.setToolTip('Enter a new payout Dash address.')
+        self.edtPayoutAddress.setToolTip('Enter a new payout Hatch address.')
 
-        if self.dmn_operator_key_type == InputKeyType.PRIVATE:
+        if self.hmn_operator_key_type == InputKeyType.PRIVATE:
             key_type, tooltip_anchor, placeholder_text = ('privkey', 'pubkey', 'Enter a new operator private key.')
             style = ''
         else:
@@ -185,11 +185,11 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         self.lblOperatorKey.setText(get_label_text('Operator', key_type, tooltip_anchor, style))
         self.edtOperatorKey.setToolTip(placeholder_text)
 
-        if self.dmn_voting_key_type == InputKeyType.PRIVATE:
+        if self.hmn_voting_key_type == InputKeyType.PRIVATE:
             key_type, tooltip_anchor, placeholder_text = ('privkey','address', 'Enter a new voting private key.')
             style = ''
         else:
-            key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter a new voting Dash address.')
+            key_type, tooltip_anchor, placeholder_text = ('address', 'privkey', 'Enter a new voting Hatch address.')
             style = 'hl1'
         self.lblVotingKey.setText(get_label_text('Voting', key_type, tooltip_anchor, style))
         self.edtVotingKey.setToolTip(placeholder_text)
@@ -200,11 +200,11 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         self.lblOperatorKey.setVisible(self.show_upd_operator)
         self.edtOperatorKey.setVisible(self.show_upd_operator)
         self.btnGenerateOperatorKey.setVisible(self.show_upd_operator and
-                                               self.dmn_operator_key_type == InputKeyType.PRIVATE)
+                                               self.hmn_operator_key_type == InputKeyType.PRIVATE)
 
         self.lblVotingKey.setVisible(self.show_upd_voting)
         self.edtVotingKey.setVisible(self.show_upd_voting)
-        self.btnGenerateVotingKey.setVisible(self.show_upd_voting and self.dmn_voting_key_type == InputKeyType.PRIVATE)
+        self.btnGenerateVotingKey.setVisible(self.show_upd_voting and self.hmn_voting_key_type == InputKeyType.PRIVATE)
 
         if self.show_manual_commands:
             self.lblManualCommands.setText('<a style="text-decoration:none" '
@@ -218,26 +218,26 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         self.lblMessage.setText('<span style="color:#ff6600">By clicking <span style="font-weight:800">&lt;Send '
                                 'Update Transaction&gt;</span> you agree to send the owner private key to '
                                 'the remote RPC node which is necessary to automatically execute the required command ('
-                                'read notes <a href="https://github.com/Bertrand256/dash-masternode-tool/blob/'
+                                'read notes <a href="https://github.com/hatchpay/hatch-masternode-tool/blob/'
                                 'master/doc/deterministic-mn-migration.md#automatic-method-using-public-rpc-'
                                 'nodes-m1">here</a>). If you do not agree, follow the manual steps.</span>')
         self.minimize_dialog_height()
 
     @pyqtSlot(str)
     def on_lblOperatorKey_linkActivated(self, link):
-        if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-            self.dmn_operator_key_type = InputKeyType.PUBLIC
+        if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+            self.hmn_operator_key_type = InputKeyType.PUBLIC
         else:
-            self.dmn_operator_key_type = InputKeyType.PRIVATE
+            self.hmn_operator_key_type = InputKeyType.PRIVATE
         self.edtOperatorKey.setText('')
         self.update_ctrls_state()
 
     @pyqtSlot(str)
     def on_lblVotingKey_linkActivated(self, link):
-        if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-            self.dmn_voting_key_type = InputKeyType.PUBLIC
+        if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+            self.hmn_voting_key_type = InputKeyType.PUBLIC
         else:
-            self.dmn_voting_key_type = InputKeyType.PRIVATE
+            self.hmn_voting_key_type = InputKeyType.PRIVATE
         self.edtVotingKey.setText('')
         self.update_ctrls_state()
 
@@ -252,7 +252,7 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
     @pyqtSlot(str)
     def on_lblVotingKey_linkHovered(self, link):
         if link == 'address':
-            tt = 'Change input type to Dash address'
+            tt = 'Change input type to Hatch address'
         else:
             tt = 'Change input type to private key'
         self.lblVotingKey.setToolTip(tt)
@@ -268,26 +268,26 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
 
     @pyqtSlot(bool)
     def on_btnGenerateVotingKey_clicked(self, active):
-        k = generate_wif_privkey(self.app_config.dash_network, compressed=True)
+        k = generate_wif_privkey(self.app_config.hatch_network, compressed=True)
         self.edtVotingKey.setText(k)
 
     def validate_data(self):
         payout_address = self.edtPayoutAddress.text()
         if payout_address:
-            if not validate_address(payout_address, self.app_config.dash_network):
-                raise Exception('Invalid payout Dash address')
+            if not validate_address(payout_address, self.app_config.hatch_network):
+                raise Exception('Invalid payout Hatch address')
             else:
-                self.dmn_new_payout_address = payout_address
+                self.hmn_new_payout_address = payout_address
         else:
-            self.dmn_new_payout_address = self.dmn_prev_payout_address
+            self.hmn_new_payout_address = self.hmn_prev_payout_address
 
         key = self.edtOperatorKey.text().strip()
         if key:
-            if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-                self.dmn_new_operator_privkey = key
+            if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+                self.hmn_new_operator_privkey = key
 
                 try:
-                    b = bytes.fromhex(self.dmn_new_operator_privkey)
+                    b = bytes.fromhex(self.hmn_new_operator_privkey)
                     if len(b) != 32:
                         raise Exception('invalid length (' + str(len(b)) + ')')
                 except Exception as e:
@@ -295,43 +295,43 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
                     raise Exception('Invalid operator private key: ' + str(e))
 
                 try:
-                    self.dmn_new_operator_pubkey = bls_privkey_to_pubkey(self.dmn_new_operator_privkey)
+                    self.hmn_new_operator_pubkey = bls_privkey_to_pubkey(self.hmn_new_operator_privkey)
                 except Exception as e:
                     self.edtOperatorKey.setFocus()
                     raise Exception('Invalid operator private key: ' + str(e))
             else:
-                self.dmn_new_operator_pubkey = key
-                self.dmn_new_operator_privkey = ''
+                self.hmn_new_operator_pubkey = key
+                self.hmn_new_operator_privkey = ''
                 try:
-                    b = bytes.fromhex(self.dmn_new_operator_pubkey)
+                    b = bytes.fromhex(self.hmn_new_operator_pubkey)
                     if len(b) != 48:
                         raise Exception('invalid length (' + str(len(b)) + ')')
                 except Exception as e:
                     self.edtOperatorKey.setFocus()
                     raise Exception('Invalid operator public key: ' + str(e))
         else:
-            self.dmn_new_operator_pubkey = self.dmn_prev_operator_pubkey
-            self.dmn_new_operator_privkey = ''
+            self.hmn_new_operator_pubkey = self.hmn_prev_operator_pubkey
+            self.hmn_new_operator_privkey = ''
 
         key = self.edtVotingKey.text().strip()
         if key:
-            if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-                self.dmn_new_voting_privkey = key
-                if not validate_wif_privkey(self.dmn_new_voting_privkey, self.app_config.dash_network):
+            if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+                self.hmn_new_voting_privkey = key
+                if not validate_wif_privkey(self.hmn_new_voting_privkey, self.app_config.hatch_network):
                     self.edtVotingKey.setFocus()
                     raise Exception('Invalid voting private key.')
                 else:
-                    self.dmn_new_voting_address = wif_privkey_to_address(self.dmn_new_voting_privkey,
-                                                                         self.app_config.dash_network)
+                    self.hmn_new_voting_address = wif_privkey_to_address(self.hmn_new_voting_privkey,
+                                                                         self.app_config.hatch_network)
             else:
-                self.dmn_new_voting_address = key
-                self.dmn_new_voting_privkey = ''
-                if not validate_address(self.dmn_new_voting_address, self.app_config.dash_network):
+                self.hmn_new_voting_address = key
+                self.hmn_new_voting_privkey = ''
+                if not validate_address(self.hmn_new_voting_address, self.app_config.hatch_network):
                     self.edtVotingKey.setFocus()
-                    raise Exception('Invalid voting Dash address.')
+                    raise Exception('Invalid voting Hatch address.')
         else:
-            self.dmn_new_voting_address = self.dmn_prev_voting_address
-            self.dmn_new_voting_privkey = ''
+            self.hmn_new_voting_address = self.hmn_prev_voting_address
+            self.hmn_new_voting_privkey = ''
 
     def update_manual_cmd_info(self):
         try:
@@ -341,16 +341,16 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
                       (self.show_upd_voting and bool(self.edtVotingKey.text()))
 
             if changed:
-                cmd = f'protx update_registrar "{self.dmn_protx_hash}" "{self.dmn_new_operator_pubkey}" ' \
-                    f'"{self.dmn_new_voting_address}" "{self.dmn_new_payout_address}" ' \
+                cmd = f'protx update_registrar "{self.hmn_protx_hash}" "{self.hmn_new_operator_pubkey}" ' \
+                    f'"{self.hmn_new_voting_address}" "{self.hmn_new_payout_address}" ' \
                     f'"<span style="color:green">feeSourceAddress</span>"'
                 msg = "<ol>" \
-                      "<li>Start a Dash Core wallet with sufficient funds to cover a transaction fee.</li>"
-                msg += "<li>Import the owner private key into the Dash Core wallet if you haven't done this " \
-                       "before (<a href=\"https://github.com/Bertrand256/dash-masternode-tool/blob/master/doc/" \
+                      "<li>Start a Hatch Core wallet with sufficient funds to cover a transaction fee.</li>"
+                msg += "<li>Import the owner private key into the Hatch Core wallet if you haven't done this " \
+                       "before (<a href=\"https://github.com/hatchpay/hatch-masternode-tool/blob/master/doc/" \
                        "deterministic-mn-migration.md#can-i-modify-the-payout-address-without-resetting-the-" \
                        "place-in-the-payment-queue\">details</a>).</li>"
-                msg += "<li>Execute the following command in the Dash Core debug console:<br><br>"
+                msg += "<li>Execute the following command in the Hatch Core debug console:<br><br>"
                 msg += "  <code style=\"background-color:#e6e6e6\">" + cmd + '</code></li><br>'
                 msg += 'Replace <span style="color:green">feeSourceAddress</span> with the address being the ' \
                        'source of the transaction fee.'
@@ -379,21 +379,21 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
     def on_btnSendUpdateTx_clicked(self, enabled):
         self.read_data_from_network()
         self.validate_data()
-        if self.dmn_prev_payout_address == self.dmn_new_payout_address and \
-            self.dmn_prev_operator_pubkey == self.dmn_new_operator_pubkey and \
-            self.dmn_prev_voting_address == self.dmn_new_voting_address:
-            WndUtils.warnMsg('Nothing is changed compared to the data stored in the Dash network.')
+        if self.hmn_prev_payout_address == self.hmn_new_payout_address and \
+            self.hmn_prev_operator_pubkey == self.hmn_new_operator_pubkey and \
+            self.hmn_prev_voting_address == self.hmn_new_voting_address:
+            WndUtils.warnMsg('Nothing is changed compared to the data stored in the Hatch network.')
         else:
             self.send_upd_tx()
 
     def send_upd_tx(self):
         # verify the owner key used in the configuration
-        if self.masternode.dmn_owner_key_type == InputKeyType.PRIVATE and self.masternode.dmn_owner_private_key:
-            owner_address = wif_privkey_to_address(self.masternode.dmn_owner_private_key,
-                                                   self.app_config.dash_network)
-            if owner_address != self.dmn_owner_address:
+        if self.masternode.hmn_owner_key_type == InputKeyType.PRIVATE and self.masternode.hmn_owner_private_key:
+            owner_address = wif_privkey_to_address(self.masternode.hmn_owner_private_key,
+                                                   self.app_config.hatch_network)
+            if owner_address != self.hmn_owner_address:
                 raise Exception('Inconsistency of the owner key between the app configuration and the data '
-                                'on the Dash network.')
+                                'on the Hatch network.')
         else:
             raise Exception('To use this feature, you need to have the owner private key in your masternode '
                             'configuration.')
@@ -401,14 +401,14 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
         try:
             funding_address = ''
             params = ['update_registrar',
-                      self.dmn_protx_hash,
-                      self.dmn_new_operator_pubkey,
-                      self.dmn_new_voting_address,
-                      self.dmn_new_payout_address,
+                      self.hmn_protx_hash,
+                      self.hmn_new_operator_pubkey,
+                      self.hmn_new_voting_address,
+                      self.hmn_new_payout_address,
                       funding_address]
 
             try:
-                upd_reg_support = self.dashd_intf.checkfeaturesupport('protx_update_registrar',
+                upd_reg_support = self.hatchd_intf.checkfeaturesupport('protx_update_registrar',
                                                                       self.app_config.app_version)
                 if not upd_reg_support.get('enabled'):
                     if upd_reg_support.get('message'):
@@ -433,8 +433,8 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
             if not public_proxy_node:
                 try:
                     # find an address to be used as the source of the transaction fees
-                    min_fee = round(1024 * FEE_DUFF_PER_BYTE / 1e8, 8)
-                    balances = self.dashd_intf.listaddressbalances(min_fee)
+                    min_fee = round(1024 * FEE_HUFF_PER_BYTE / 1e8, 8)
+                    balances = self.hatchd_intf.listaddressbalances(min_fee)
                     bal_list = []
                     for addr in balances:
                         bal_list.append({'address': addr, 'amount': balances[addr]})
@@ -448,32 +448,32 @@ class UpdMnRegistrarDlg(QDialog, ui_upd_mn_registrar_dlg.Ui_UpdMnRegistrarDlg, W
                                     "public RPC node and the funding address for the transaction fee will "
                                     "be estimated during the `update_registrar` call")
             else:
-                params.append(self.masternode.dmn_owner_private_key)
+                params.append(self.masternode.hmn_owner_private_key)
 
-            upd_tx_hash = self.dashd_intf.rpc_call(True, False, 'protx', *params)
+            upd_tx_hash = self.hatchd_intf.rpc_call(True, False, 'protx', *params)
 
             if upd_tx_hash:
                 logging.info('update_registrar successfully executed, tx hash: ' + upd_tx_hash)
                 changed = False
-                if self.dmn_new_voting_address != self.dmn_prev_voting_address:
-                    changed = self.masternode.dmn_voting_key_type != self.dmn_voting_key_type
-                    self.masternode.dmn_voting_key_type = self.dmn_voting_key_type
-                    if self.dmn_voting_key_type == InputKeyType.PRIVATE:
-                        changed = changed or self.masternode.dmn_voting_private_key != self.dmn_new_voting_privkey
-                        self.masternode.dmn_voting_private_key = self.dmn_new_voting_privkey
+                if self.hmn_new_voting_address != self.hmn_prev_voting_address:
+                    changed = self.masternode.hmn_voting_key_type != self.hmn_voting_key_type
+                    self.masternode.hmn_voting_key_type = self.hmn_voting_key_type
+                    if self.hmn_voting_key_type == InputKeyType.PRIVATE:
+                        changed = changed or self.masternode.hmn_voting_private_key != self.hmn_new_voting_privkey
+                        self.masternode.hmn_voting_private_key = self.hmn_new_voting_privkey
                     else:
-                        changed = changed or self.masternode.dmn_voting_address != self.dmn_new_voting_address
-                        self.masternode.dmn_voting_address = self.dmn_new_voting_address
+                        changed = changed or self.masternode.hmn_voting_address != self.hmn_new_voting_address
+                        self.masternode.hmn_voting_address = self.hmn_new_voting_address
 
-                if self.dmn_new_operator_pubkey != self.dmn_prev_operator_pubkey:
-                    changed = changed or self.masternode.dmn_operator_key_type != self.dmn_operator_key_type
-                    self.masternode.dmn_operator_key_type = self.dmn_operator_key_type
-                    if self.dmn_operator_key_type == InputKeyType.PRIVATE:
-                        changed = changed or self.masternode.dmn_operator_private_key != self.dmn_new_operator_privkey
-                        self.masternode.dmn_operator_private_key = self.dmn_new_operator_privkey
+                if self.hmn_new_operator_pubkey != self.hmn_prev_operator_pubkey:
+                    changed = changed or self.masternode.hmn_operator_key_type != self.hmn_operator_key_type
+                    self.masternode.hmn_operator_key_type = self.hmn_operator_key_type
+                    if self.hmn_operator_key_type == InputKeyType.PRIVATE:
+                        changed = changed or self.masternode.hmn_operator_private_key != self.hmn_new_operator_privkey
+                        self.masternode.hmn_operator_private_key = self.hmn_new_operator_privkey
                     else:
-                        changed = changed or self.masternode.dmn_operator_public_key != self.dmn_new_operator_pubkey
-                        self.masternode.dmn_operator_public_key = self.dmn_new_operator_pubkey
+                        changed = changed or self.masternode.hmn_operator_public_key != self.hmn_new_operator_pubkey
+                        self.masternode.hmn_operator_public_key = self.hmn_new_operator_pubkey
 
                 if self.on_upd_success_callback:
                     self.on_upd_success_callback(self.masternode)
